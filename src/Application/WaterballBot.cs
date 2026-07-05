@@ -28,15 +28,15 @@ public static class WaterballBot
     {
         var bot = new BotBuilder<BotContext>();
 
-        DefineNormal(bot);
-        DefineKnowledgeKing(bot);
-        DefineRecord(bot);
+        DefineNormalState(bot);
+        DefineKnowledgeKingState(bot);
+        DefineRecordState(bot);
 
         bot.StartAt(Normal);
         return bot.Build();
     }
 
-    private static void DefineNormal(BotBuilder<BotContext> bot)
+    private static void DefineNormalState(BotBuilder<BotContext> bot)
     {
         var normal = bot.AddCompositeState(Normal,
             initialLeafStateResolver: ctx => ctx.OnlineCount < InteractingThreshold ? Default : Interacting);
@@ -66,7 +66,7 @@ public static class WaterballBot
             does: (_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1));
     }
 
-    private static void DefineKnowledgeKing(BotBuilder<BotContext> bot)
+    private static void DefineKnowledgeKingState(BotBuilder<BotContext> bot)
     {
         var kk = bot.AddCompositeState(KnowledgeKing); // 無 resolver → 固定進第一個宣告的子狀態
 
@@ -95,7 +95,7 @@ public static class WaterballBot
         bot.AddCommandTransition(stateFrom: KnowledgeKing, triggerCommandKey: "king-stop", adminOnly: true, stateTo: Normal);
     }
 
-    private static void DefineRecord(BotBuilder<BotContext> bot)
+    private static void DefineRecordState(BotBuilder<BotContext> bot)
     {
         var record = bot.AddCompositeState(Record,
             initialLeafStateResolver: ctx => ctx.SomeoneIsBroadcasting ? Recording : Waiting);
