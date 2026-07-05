@@ -16,5 +16,5 @@ internal static class BotGuards
 
     /// <summary>額度橫切（檢查）：夠不夠 n。</summary>
     public static IGuard<C> HasQuota<C>(int amount) where C : IBotContext =>
-        new PredicateGuard<C>((_, ctx) => ctx.Quota >= amount);
+        new PredicateGuard<C>((_, ctx) => ctx.TokenQuota >= amount);
 }

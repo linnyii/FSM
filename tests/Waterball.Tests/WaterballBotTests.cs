@@ -13,7 +13,7 @@ public class WaterballBotTests
     private static (FiniteStateMachine<BotContext> fsm, BotContext ctx, SpyMessenger spy) NewBot(int quota = 100)
     {
         var spy = new SpyMessenger();
-        var ctx = new BotContext(spy, initialQuota: quota);
+        var ctx = new BotContext(spy, initialTokenQuota: quota);
         var fsm = WaterballBot.Define();
         fsm.Current.OnEntry(ctx); // 啟動初始子狀態（Normal → Default）
         return (fsm, ctx, spy);
@@ -37,7 +37,7 @@ public class WaterballBotTests
             "chat:KnowledgeKing is started!",
             "chat:Question 0",
         }, spy.Log);
-        Assert.Equal(5, ctx.Quota);                 // 扣了 5
+        Assert.Equal(5, ctx.TokenQuota);                 // 扣了 5
         Assert.Equal("KnowledgeKing", fsm.Current.Id);
     }
 
@@ -51,7 +51,7 @@ public class WaterballBotTests
 
         Assert.Equal(FireResult.NotConsumed, result);
         Assert.Equal(new[] { "chat:good to hear" }, spy.Log); // 只有輪播，沒轉移
-        Assert.Equal(10, ctx.Quota);                          // 沒扣
+        Assert.Equal(10, ctx.TokenQuota);                          // 沒扣
         Assert.Equal("Normal", fsm.Current.Id);
     }
 
@@ -65,7 +65,7 @@ public class WaterballBotTests
 
         Assert.Equal(FireResult.NotConsumed, result);
         Assert.Equal("Normal", fsm.Current.Id);
-        Assert.Equal(3, ctx.Quota);
+        Assert.Equal(3, ctx.TokenQuota);
     }
 
     [Fact]

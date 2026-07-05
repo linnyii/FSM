@@ -1,9 +1,9 @@
 using Application;
 
 
-var messenger = new ConsoleMessenger();           // 具體實作，懂 I/O 格式
-var ctx = new BotContext(messenger, initialQuota: 100);
-var fsm = WaterballBot.Define();                  // 用 bot module DSL 宣告 Waterball
+var messenger = new ConsoleMessenger();          
+var ctx = new BotContext(messenger, initialTokenQuota: 100);
+var fsm = WaterballBot.Define();              
 var parser = new EventParser(adminUserIds: new HashSet<int> { 1 });
 
 // 進場：啟動初始狀態（依線上人數選 Default/Interacting）。

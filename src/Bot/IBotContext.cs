@@ -9,7 +9,7 @@ namespace Bot;
 public interface IBotContext
 {
     /// <summary>共享的社群額度（全社群共用一份）。</summary>
-    int Quota { get; }
+    int TokenQuota { get; }
 
     /// <summary>發指令的人是不是管理員（權限判斷，供 .adminOnly() 用）。</summary>
     bool IsCurrentUserAdmin { get; }

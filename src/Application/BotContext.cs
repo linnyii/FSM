@@ -11,7 +11,7 @@ namespace Application;
 public sealed class BotContext : IBotContext
 {
     // ── 機器人領域通用（IBotContext）──
-    public int Quota { get; private set; }
+    public int TokenQuota { get; private set; }
     public IMessenger Messenger { get; }
 
     /// <summary>當前正在處理的事件的發話者是不是管理員。</summary>
@@ -24,11 +24,11 @@ public sealed class BotContext : IBotContext
     /// <summary>知識王目前答到第幾題（跨子狀態共享）。</summary>
     public int CurrentQuestionIndex { get; set; }
 
-    public BotContext(IMessenger messenger, int initialQuota)
+    public BotContext(IMessenger messenger, int initialTokenQuota)
     {
         Messenger = messenger;
-        Quota = initialQuota;
+        TokenQuota = initialTokenQuota;
     }
 
-    public void DeductQuota(int amount) => Quota -= amount;
+    public void DeductQuota(int amount) => TokenQuota -= amount;
 }

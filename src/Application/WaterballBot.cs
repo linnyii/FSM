@@ -39,30 +39,30 @@ public static class WaterballBot
     private static void DefineNormal(BotBuilder<BotContext> bot)
     {
         var normal = bot.AddCompositeState(Normal,
-            initialResolver: ctx => ctx.OnlineCount < InteractingThreshold ? Default : Interacting);
+            initialLeafStateResolver: ctx => ctx.OnlineCount < InteractingThreshold ? Default : Interacting);
         normal.AddLeafState(Default,
-            rotate: ["good to hear", "thank you", "How are you"]);
+            botAutoRotateMessage: ["good to hear", "thank you", "How are you"]);
         normal.AddLeafState(Interacting,
-            rotate: ["nice to see you", "welcome back", "let's chat"]);
+            botAutoRotateMessage: ["nice to see you", "welcome back", "let's chat"]);
 
-        bot.AddCommand(
-            from:      Normal,
-            keyword:   "king",
+        bot.AddCommandTransition(
+            stateFrom:      Normal,
+            triggerCommandKey:   "king",
             adminOnly: true,
-            costs:     5,
+            tokenCosts:     5,
             replies:   "KnowledgeKing is started!",
             does:      (_, ctx) => ctx.CurrentQuestionIndex = 0,
-            to:        KnowledgeKing);
+            stateTo:        KnowledgeKing);
 
-        bot.AddCommand(
-            from:    Normal,
-            keyword: "record",
-            costs:   3,
-            to:      Record);
+        bot.AddCommandTransition(
+            stateFrom:    Normal,
+            triggerCommandKey: "record",
+            tokenCosts:   3,
+            stateTo:      Record);
 
-        bot.AddTransition(from: Normal, on: Login, to: Normal,
+        bot.AddTransition(stateFrom: Normal, triggerEventName: Login, stateTo: Normal,
             does: (_, ctx) => ctx.OnlineCount++);
-        bot.AddTransition(from: Normal, on: Logout, to: Normal,
+        bot.AddTransition(stateFrom: Normal, triggerEventName: Logout, stateTo: Normal,
             does: (_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1));
     }
 
@@ -74,41 +74,41 @@ public static class WaterballBot
             onEnter: ctx => ctx.Messenger.SendChat($"Question {ctx.CurrentQuestionIndex}"));
 
         kk.AddTransition(
-            from: Questioning, on: Elapsed, to: Questioning,
+            stateFrom: Questioning, triggerEventName: Elapsed, stateTo: Questioning,
             when: (_, ctx) => ctx.CurrentQuestionIndex < TotalQuestions - 1,
             does: (_, ctx) => ctx.CurrentQuestionIndex++);
         
         kk.AddTransition(
-            from: Questioning, on: Elapsed, to: ThanksForJoining,
+            stateFrom: Questioning, triggerEventName: Elapsed, stateTo: ThanksForJoining,
             when: (_, ctx) => ctx.CurrentQuestionIndex >= TotalQuestions - 1);
 
         kk.AddLeafState(ThanksForJoining,
             onEnter: ctx => ctx.Messenger.SendChat("Thanks for joining!"));
         
-        kk.AddCommand(
-            from:    ThanksForJoining,
-            keyword: "play again",
+        kk.AddCommandTransition(
+            stateFrom:    ThanksForJoining,
+            triggerCommandKey: "play again",
             replies: "KnowledgeKing is gonna start again!",
             does:    (_, ctx) => ctx.CurrentQuestionIndex = 0,
-            to:      Questioning);
+            stateTo:      Questioning);
 
-        bot.AddCommand(from: KnowledgeKing, keyword: "king-stop", adminOnly: true, to: Normal);
+        bot.AddCommandTransition(stateFrom: KnowledgeKing, triggerCommandKey: "king-stop", adminOnly: true, stateTo: Normal);
     }
 
     private static void DefineRecord(BotBuilder<BotContext> bot)
     {
         var record = bot.AddCompositeState(Record,
-            initialResolver: ctx => ctx.SomeoneIsBroadcasting ? Recording : Waiting);
+            initialLeafStateResolver: ctx => ctx.SomeoneIsBroadcasting ? Recording : Waiting);
 
         record.AddLeafState(Waiting,
             onEnter: ctx => ctx.Messenger.SendChat("[Record] waiting for a broadcaster..."));
         record.AddLeafState(Recording,
             onEnter: ctx => ctx.Messenger.GoBroadcasting());
 
-        record.AddTransition(from: Waiting, on: GoBroadcasting, to: Recording,
+        record.AddTransition(stateFrom: Waiting, triggerEventName: GoBroadcasting, stateTo: Recording,
             does: (_, ctx) => ctx.SomeoneIsBroadcasting = true);
 
-        bot.AddTransition(from: Record, on: StopRecording, to: Normal,
+        bot.AddTransition(stateFrom: Record, triggerEventName: StopRecording, stateTo: Normal,
             does: (_, ctx) => ctx.SomeoneIsBroadcasting = false);
     }
 }

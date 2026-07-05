@@ -25,11 +25,14 @@ public sealed class NoOpAction<C> : IAction<C>
     public void Execute(Event @event, C ctx) { }
 }
 
-/// <summary>把多個 action 依序組成一個（bot DSL 的 .costs() 疊加扣額度 + 發訊息）。</summary>
-public sealed class CompositeAction<C> : IAction<C>
+/// <summary>
+/// 執行一條 transition 時要依序跑的一串 action（扣額度 + 發開場白 + 自訂副作用…）。
+/// transition 的 action 欄位只裝一個 IAction,故用它把多個包成一個依序執行。
+/// </summary>
+public sealed class TransitionAction<C> : IAction<C>
 {
     private readonly IReadOnlyList<IAction<C>> _actions;
-    public CompositeAction(params IAction<C>[] actions) => _actions = actions;
+    public TransitionAction(params IAction<C>[] actions) => _actions = actions;
 
     public void Execute(Event @event, C ctx)
     {
