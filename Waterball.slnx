@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Application/Application.csproj" />
+    <Project Path="src/Bot/Bot.csproj" />
+    <Project Path="src/Fsm.Composite/Fsm.Composite.csproj" />
+    <Project Path="src/Fsm.Core/Fsm.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Waterball.Tests/Waterball.Tests.csproj" />
+  </Folder>
+</Solution>
