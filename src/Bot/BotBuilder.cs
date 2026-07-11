@@ -22,12 +22,14 @@ public sealed class BotBuilder<C> where C : IBotContext
         string id,
         string[]? botAutoRotateMessage = null,
         Action<C>? onEnter = null,
-        Action<C>? onExit = null)
+        Action<C>? onExit = null,
+        Action<Event, C>? onHandle = null)
     {
         var spec = GetOrCreateTheState(id);
         spec.Rotate = botAutoRotateMessage is null ? null : new Rotate<C>(botAutoRotateMessage);
         spec.OnEnter = onEnter;
         spec.OnExit = onExit;
+        spec.OnHandle = onHandle;
     }
 
     public BotBuilder<C> AddCompositeState(
@@ -151,6 +153,7 @@ public sealed class BotBuilder<C> where C : IBotContext
         public Rotate<C>? Rotate { get; set; }
         public Action<C>? OnEnter { get; set; }
         public Action<C>? OnExit { get; set; }
+        public Action<Event, C>? OnHandle { get; set; }
         public BotBuilder<C>? SubStates { get; set; }
         public Func<C, string>? InitialResolver { get; set; }
 
@@ -168,11 +171,14 @@ public sealed class BotBuilder<C> where C : IBotContext
 
             // 有輪播:handle 發下一則、entry 先歸零（重進場從第一則開始）。
             Action<C>? onEntry = OnEnter;
-            Action<Event, C>? onHandle = null;
+            Action<Event, C>? onHandle = OnHandle;
             if (Rotate is not null)
             {
                 var rotate = Rotate;
-                onHandle = rotate.Emit;
+                var userHandle = OnHandle;
+                onHandle = userHandle is null
+                    ? rotate.Emit
+                    : (e, ctx) => { userHandle(e, ctx); rotate.Emit(e, ctx); };
                 var userEntry = OnEnter;
                 onEntry = ctx =>
                 {

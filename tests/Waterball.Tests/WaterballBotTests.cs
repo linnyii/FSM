@@ -30,12 +30,14 @@ public class WaterballBotTests
 
         fsm.Fire(Msg(Admin, "king"), ctx);
 
-        // 先響應（輪播 good to hear）→ 開場白（transition action）→ 出第 0 題（Questioning.entry）
+        // 先響應（輪播 good to hear）→ 開場白（transition action）→ 出第 0 題 + 作答提示（Questioning.entry）
+        var bank = new Application.Quiz.ChoiceQuizBank();
         Assert.Equal(new[]
         {
             "chat:good to hear",
             "chat:KnowledgeKing is started!",
-            "chat:Question 0",
+            $"chat:{bank.QuestionAt(0)}",
+            "chat:請 @bot 並回覆選項代號(A/B/C/D)作答",
         }, spy.Log);
         Assert.Equal(5, ctx.TokenQuota);                 // 扣了 5
         Assert.Equal("KnowledgeKing", fsm.Current.Id);
@@ -74,22 +76,33 @@ public class WaterballBotTests
         var (fsm, ctx, spy) = NewBot(quota: 10);
         ctx.CurrentUser = new User(Admin, isAdmin: true);
 
-        fsm.Fire(Msg(Admin, "king"), ctx);        // 進 KnowledgeKing/Questioning
-        fsm.Fire(new Event(WaterballBot.Elapsed), ctx); // Q0 -> Q1
-        fsm.Fire(new Event(WaterballBot.Elapsed), ctx); // Q1 -> Q2
-        fsm.Fire(new Event(WaterballBot.Elapsed), ctx); // Q2 (last) -> ThanksForJoining
+        fsm.Fire(Msg(Admin, "king"), ctx);   // 進 KnowledgeKing/Questioning(3 題)
+        DriveTimeoutThroughAllQuestions(fsm, ctx); // 全部 20s timeout → ThanksForJoining
+        Assert.Equal("KnowledgeKing", fsm.Current.Id);
         spy.Log.Clear();
 
         fsm.Fire(Msg(Admin, "play again"), ctx);
 
-        // play again 的開場白是 "gonna start again!"（因路徑而異），再出第 0 題（共同）
+        // play again 的開場白是 "gonna start again!"，再出第 0 題 + 作答提示（共同）
+        var bank = new Application.Quiz.ChoiceQuizBank();
         Assert.Equal(new[]
         {
             "chat:KnowledgeKing is gonna start again!",
-            "chat:Question 0",
+            $"chat:{bank.QuestionAt(0)}",
+            "chat:請 @bot 並回覆選項代號(A/B/C/D)作答",
         }, spy.Log);
         Assert.Equal("KnowledgeKing", fsm.Current.Id);
     }
+
+    // 每題一個 20s elapsed:onHandle 先累計到 20 → 同一事件的 20s transition 立即跨題;走完全部題目到 ThanksForJoining。
+    private static void DriveTimeoutThroughAllQuestions(FiniteStateMachine<BotContext> fsm, BotContext ctx)
+    {
+        var count = ctx.QuizBank.Count;
+        for (var i = 0; i < count; i++)
+            fsm.Fire(Elapsed(20), ctx);
+    }
+
+    private static Event Elapsed(int seconds) => new(BotEvents.Elapsed, seconds);
 
     [Fact]
     public void King_stop_bubbles_from_inner_to_return_to_Normal()

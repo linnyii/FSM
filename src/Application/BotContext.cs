@@ -1,3 +1,4 @@
+using Application.Quiz;
 using Bot;
 
 namespace Application;
@@ -28,10 +29,28 @@ public sealed class BotContext : IBotContext
     /// <summary>知識王目前答到第幾題（跨子狀態共享）。</summary>
     public int CurrentQuestionIndex { get; set; }
 
-    public BotContext(IMessenger messenger, int initialTokenQuota)
+    // ── timeout 累計（elapsed 事件累加;供批四 guard 分流 20s/1h）──
+    /// <summary>本題累計秒（答對/進新題歸零）。</summary>
+    public int ElapsedSecondsInQuestion { get; set; }
+
+    /// <summary>全場累計秒（進 KnowledgeKing 歸零;達 3600 強制結束）。</summary>
+    public int ElapsedSecondsInGame { get; set; }
+
+    /// <summary>ThanksForJoining 累計秒（進場歸零;達 20 回 Normal）。</summary>
+    public int ElapsedSecondsInThanks { get; set; }
+
+    // ── 計分（首答旗標兼 @標記對象）──
+    /// <summary>本題首位答對者 id;null = 本題尚無人答對。</summary>
+    public string? FirstCorrectAnswerer { get; set; }
+
+    /// <summary>知識王題庫（發題 / 判對錯 / 題數）。</summary>
+    public IQuizBank QuizBank { get; }
+
+    public BotContext(IMessenger messenger, int initialTokenQuota, IQuizBank? quizBank = null)
     {
         Messenger = messenger;
         TokenQuota = initialTokenQuota;
+        QuizBank = quizBank ?? new ChoiceQuizBank();
     }
 
     public void DeductQuota(int amount) => TokenQuota -= amount;
