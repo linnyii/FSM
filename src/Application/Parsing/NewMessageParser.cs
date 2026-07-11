@@ -13,7 +13,8 @@ public sealed class NewMessageParser : IEventParser
     public Event Parse(string json)
     {
         var dto = Json.Deserialize<Dto>(json);
-        var tagsBot = dto.Tags?.Contains("bot") ?? false;
-        return new Event(BotEvents.NewMessage, new ChatMessage(dto.AuthorId, dto.Content, tagsBot));
+        var tags = dto.Tags ?? [];
+        var tagsBot = tags.Contains("bot");
+        return new Event(BotEvents.NewMessage, new ChatMessage(dto.AuthorId, dto.Content, tagsBot, tags));
     }
 }
