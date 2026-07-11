@@ -18,11 +18,9 @@ public sealed class AlwaysTrueGuard<C> : IGuard<C>
 }
 
 /// <summary>用委派快速組一個 guard。</summary>
-public sealed class PredicateGuard<C> : IGuard<C>
+public sealed class PredicateGuard<C>(Func<Event, C, bool> predicate) : IGuard<C>
 {
-    private readonly Func<Event, C, bool> _predicate;
-    public PredicateGuard(Func<Event, C, bool> predicate) => _predicate = predicate;
-    public bool Test(Event @event, C ctx) => _predicate(@event, ctx);
+    public bool Test(Event @event, C ctx) => predicate(@event, ctx);
 }
 
 /// <summary>

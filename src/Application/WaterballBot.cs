@@ -63,9 +63,9 @@ public static class WaterballBot
             stateTo:      Record);
 
         bot.AddTransition(stateFrom: Normal, triggerEventName: Login, stateTo: Normal,
-            does: (_, ctx) => ctx.OnlineCount++);
+            tasksToDo: (_, ctx) => ctx.OnlineCount++);
         bot.AddTransition(stateFrom: Normal, triggerEventName: Logout, stateTo: Normal,
-            does: (_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1));
+            tasksToDo: (_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1));
     }
 
     private const int QuestionTimeoutSeconds = 20;
@@ -83,28 +83,28 @@ public static class WaterballBot
         // ── 全場 1h 到:強制進 ThanksForJoining(宣告在 20s 之前 → 優先於 20s 跨題) ──
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: ThanksForJoining,
-            when: (_, ctx) => IsGameTimeout(ctx));
+            preCondition: (_, ctx) => IsGameTimeout(ctx));
 
         // ── 答對:new message + tag bot + 判對 + 本題尚無人答對(首答) ──
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.NewMessage, stateTo: Questioning,
-            when: (e, ctx) => IsFirstCorrectAnswer(e, ctx) && !IsLastQuestion(ctx),
-            does: (e, ctx) => { AwardFirstCorrect(e, ctx); ctx.CurrentQuestionIndex++; });
+            preCondition: (e, ctx) => IsFirstCorrectAnswer(e, ctx) && !IsLastQuestion(ctx),
+            tasksToDo: (e, ctx) => { AwardFirstCorrect(e, ctx); ctx.CurrentQuestionIndex++; });
 
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.NewMessage, stateTo: ThanksForJoining,
-            when: (e, ctx) => IsFirstCorrectAnswer(e, ctx) && IsLastQuestion(ctx),
-            does: AwardFirstCorrect);
+            preCondition: (e, ctx) => IsFirstCorrectAnswer(e, ctx) && IsLastQuestion(ctx),
+            tasksToDo: AwardFirstCorrect);
 
         // ── 20s 到,沒答對也跨題(1h transition 已宣告在前 → 這裡不必再排除 game timeout) ──
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: Questioning,
-            when: (_, ctx) => ctx.ElapsedSecondsInQuestion >= QuestionTimeoutSeconds && !IsLastQuestion(ctx),
-            does: (_, ctx) => ctx.CurrentQuestionIndex++);
+            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= QuestionTimeoutSeconds && !IsLastQuestion(ctx),
+            tasksToDo: (_, ctx) => ctx.CurrentQuestionIndex++);
 
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: ThanksForJoining,
-            when: (_, ctx) => ctx.ElapsedSecondsInQuestion >= QuestionTimeoutSeconds && IsLastQuestion(ctx));
+            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= QuestionTimeoutSeconds && IsLastQuestion(ctx));
 
         // 累計靠 Questioning 的 onHandle(見上),不用 self-loop transition。
 
@@ -125,7 +125,7 @@ public static class WaterballBot
 
         bot.AddTransition(
             stateFrom: KnowledgeKing, triggerEventName: BotEvents.Elapsed, stateTo: Normal,
-            when: (_, ctx) => ctx.ElapsedSecondsInThanks >= ThanksTimeoutSeconds);
+            preCondition: (_, ctx) => ctx.ElapsedSecondsInThanks >= ThanksTimeoutSeconds);
     }
 
     // ── 知識王:狀態進場 ──
@@ -217,17 +217,17 @@ public static class WaterballBot
             onHandle: AccumulateSpeak);
 
         record.AddTransition(stateFrom: Waiting, triggerEventName: BotEvents.GoBroadcasting, stateTo: Recording,
-            does: (_, ctx) => ctx.SomeoneIsBroadcasting = true);
+            tasksToDo: (_, ctx) => ctx.SomeoneIsBroadcasting = true);
 
         // stop broadcasting:輸出 Record Replay + 清 buffer → 回 Waiting(循環)。
         record.AddTransition(stateFrom: Recording, triggerEventName: BotEvents.StopBroadcasting, stateTo: Waiting,
-            does: EmitRecordReplay);
+            tasksToDo: EmitRecordReplay);
 
         // stop-recording(command,限錄音者):任意子狀態離開整個 Record 回 Normal。
         // 若在錄音中(buffer 有內容)→ 先輸出 Record Replay;等待中則無 Replay(沒錄到東西)。
         bot.AddTransition(stateFrom: Record, triggerEventName: BotEvents.NewMessage, stateTo: Normal,
-            when: IsStopRecordingByRecorder,
-            does: StopRecordingLeave);
+            preCondition: IsStopRecordingByRecorder,
+            tasksToDo: StopRecordingLeave);
     }
 
     // stop-recording 鐵律:tag bot + 內容 == "stop-recording" + 發話者 == 錄音者。

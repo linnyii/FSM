@@ -3,10 +3,10 @@ using Fsm.Composite;
 
 namespace Bot;
 
-public sealed class BotBuilder<C> where C : IBotContext
+public sealed class BotBuilder<TContext> where TContext : IBotContext
 {
     private readonly Dictionary<string, StateSpec> _states = new();
-    private readonly List<Transition<C>> _transitions = [];
+    private readonly List<Transition<TContext>> _transitions = [];
     private string? _initialStateId;
 
     // ────────────────────────── 狀態宣告 ──────────────────────────
@@ -21,23 +21,23 @@ public sealed class BotBuilder<C> where C : IBotContext
     public void AddLeafState(
         string id,
         string[]? botAutoRotateMessage = null,
-        Action<C>? onEnter = null,
-        Action<C>? onExit = null,
-        Action<Event, C>? onHandle = null)
+        Action<TContext>? onEnter = null,
+        Action<TContext>? onExit = null,
+        Action<Event, TContext>? onHandle = null)
     {
         var spec = GetOrCreateTheState(id);
-        spec.Rotate = botAutoRotateMessage is null ? null : new Rotate<C>(botAutoRotateMessage);
+        spec.Rotate = botAutoRotateMessage is null ? null : new Rotate<TContext>(botAutoRotateMessage);
         spec.OnEnter = onEnter;
         spec.OnExit = onExit;
         spec.OnHandle = onHandle;
     }
 
-    public BotBuilder<C> AddCompositeState(
+    public BotBuilder<TContext> AddCompositeState(
         string id,
-        Func<C, string>? initialLeafStateResolver = null)
+        Func<TContext, string>? initialLeafStateResolver = null)
     {
         var spec = GetOrCreateTheState(id);
-        spec.SubStates = new BotBuilder<C>();
+        spec.SubStates = new BotBuilder<TContext>();
         spec.InitialResolver = initialLeafStateResolver;
         return spec.SubStates;
     }
@@ -47,16 +47,7 @@ public sealed class BotBuilder<C> where C : IBotContext
 
     // ────────────────────────── 轉移宣告 ──────────────────────────
 
-    /// <summary>
-    /// 加一條「指令」轉移。內建 Waterball 鐵律:on = "new message"、guard = tag bot 且內容 == keyword。
-    /// </summary>
-    /// <param name="stateFrom">來源狀態 id。</param>
-    /// <param name="triggerCommandKey">指令關鍵字（例如 "king"）。</param>
-    /// <param name="stateTo">目標狀態 id。</param>
-    /// <param name="adminOnly">是否只有管理員能用（疊 IsAdmin guard）。</param>
-    /// <param name="tokenCosts">額度成本;&gt;0 時原子地同時疊 guard(檢查夠不夠) + action(扣除)。</param>
-    /// <param name="replies">命中時額外發的一句話（開場白這類綁 transition 的訊息）。</param>
-    /// <param name="does">命中時額外做的自訂副作用。</param>
+    
     public void AddCommandTransition(
         string stateFrom,
         string triggerCommandKey,
@@ -64,58 +55,46 @@ public sealed class BotBuilder<C> where C : IBotContext
         bool adminOnly = false,
         int tokenCosts = 0,
         string? replies = null,
-        Action<Event, C>? does = null)
+        Action<Event, TContext>? does = null)
     {
-        var guards = new List<IGuard<C>> { BotGuards.CommandIs<C>(triggerCommandKey) }; // 鐵律:tag bot + 內容 == keyword
+        var guards = new List<IGuard<TContext>> { BotGuards.CommandIs<TContext>(triggerCommandKey) }; // 鐵律:tag bot + 內容 == keyword
         if (adminOnly)
-            guards.Add(BotGuards.IsAdmin<C>());
+            guards.Add(BotGuards.IsAdmin<TContext>());
         if (tokenCosts > 0)
-            guards.Add(BotGuards.HasQuota<C>(tokenCosts));
+            guards.Add(BotGuards.HasQuota<TContext>(tokenCosts));
 
         var action = BuildAction(tokenCosts, replies, does);
-        _transitions.Add(new Transition<C>(stateFrom, BotEvents.NewMessage, stateTo, new AndGuard<C>(guards.ToArray()), action));
+        _transitions.Add(new Transition<TContext>(stateFrom, BotEvents.NewMessage, stateTo, new AndGuard<TContext>(guards.ToArray()), action));
     }
-
-    /// <summary>
-    /// 加一條「非指令」轉移（login / go broadcasting / elapsed / stop-recording / 自動回…）。
-    /// 以事件名觸發,不套指令鐵律;條件靠 <paramref name="when"/> 自己給。
-    /// </summary>
-    /// <param name="stateFrom">來源狀態 id。</param>
-    /// <param name="triggerEventName">事件名（例如 "login"）。</param>
-    /// <param name="stateTo">目標狀態 id。</param>
-    /// <param name="when">額外 guard（null = 永遠成立）。</param>
-    /// <param name="costs">額度成本;&gt;0 時同時疊檢查 + 扣除。</param>
-    /// <param name="replies">命中時額外發的一句話。</param>
-    /// <param name="does">命中時額外做的自訂副作用。</param>
+    
     public void AddTransition(
         string stateFrom,
         string triggerEventName,
         string stateTo,
-        Func<Event, C, bool>? when = null,
-        int costs = 0,
-        string? replies = null,
-        Action<Event, C>? does = null)
+        Func<Event, TContext, bool>? preCondition = null,
+        int tokenCosts = 0,
+        string? showingMessage = null,
+        Action<Event, TContext>? tasksToDo = null)
     {
-        // 一次性 when: lambda(application 專屬、不重用)保留用 PredicateGuard 包(對稱一次性 does: 用 DelegateAction)。
-        IGuard<C> baseGuard = when is null ? AlwaysTrueGuard<C>.Instance : new PredicateGuard<C>(when);
-        var guard = costs > 0
-            ? new AndGuard<C>(baseGuard, BotGuards.HasQuota<C>(costs))
+        IGuard<TContext> baseGuard = preCondition is null ? AlwaysTrueGuard<TContext>.Instance : new PredicateGuard<TContext>(preCondition);
+        var guard = tokenCosts > 0
+            ? new AndGuard<TContext>(baseGuard, BotGuards.HasQuota<TContext>(tokenCosts))
             : baseGuard;
 
-        var action = BuildAction(costs, replies, does);
-        _transitions.Add(new Transition<C>(stateFrom, triggerEventName, stateTo, guard, action));
+        var action = BuildAction(tokenCosts, showingMessage, tasksToDo);
+        _transitions.Add(new Transition<TContext>(stateFrom, triggerEventName, stateTo, guard, action));
     }
 
     // ────────────────────────── 收斂 ──────────────────────────
 
     /// <summary>把宣告收斂成一台可 fire 的機器人。</summary>
-    public FiniteStateMachine<C> Build()
+    public FiniteStateMachine<TContext> Build()
     {
         if (_initialStateId is null)
             throw new InvalidOperationException("Bot has no states.");
 
         var states = _states.Values.Select(spec => spec.BuildState()).ToList();
-        return new FiniteStateMachine<C>(states, _transitions, _initialStateId);
+        return new FiniteStateMachine<TContext>(states, _transitions, _initialStateId);
     }
 
     // ────────────────────────── 內部 ──────────────────────────
@@ -130,21 +109,21 @@ public sealed class BotBuilder<C> where C : IBotContext
     }
 
     // 把 costs 扣除 + replies 發話 + does 自訂,依序組成一個 action（順序:扣→回話→自訂）。
-    private static IAction<C> BuildAction(int costs, string? replies, Action<Event, C>? does)
+    private static IAction<TContext> BuildAction(int costs, string? replies, Action<Event, TContext>? does)
     {
-        var parts = new List<IAction<C>>();
+        var parts = new List<IAction<TContext>>();
         if (costs > 0)
-            parts.Add(BotActions.DeductQuota<C>(costs));
+            parts.Add(BotActions.DeductQuota<TContext>(costs));
         if (replies is not null)
-            parts.Add(BotActions.SendChat<C>(replies));
+            parts.Add(BotActions.SendChat<TContext>(replies));
         if (does is not null)
-            parts.Add(new DelegateAction<C>(does));
+            parts.Add(new DelegateAction<TContext>(does));
 
         return parts.Count switch
         {
-            0 => NoOpAction<C>.Instance,
+            0 => NoOpAction<TContext>.Instance,
             1 => parts[0],
-            _ => new TransitionAction<C>(parts.ToArray()),
+            _ => new TransitionAction<TContext>(parts.ToArray()),
         };
     }
 
@@ -152,28 +131,28 @@ public sealed class BotBuilder<C> where C : IBotContext
     private sealed class StateSpec
     {
         public string Id { get; }
-        public Rotate<C>? Rotate { get; set; }
-        public Action<C>? OnEnter { get; set; }
-        public Action<C>? OnExit { get; set; }
-        public Action<Event, C>? OnHandle { get; set; }
-        public BotBuilder<C>? SubStates { get; set; }
-        public Func<C, string>? InitialResolver { get; set; }
+        public Rotate<TContext>? Rotate { get; set; }
+        public Action<TContext>? OnEnter { get; set; }
+        public Action<TContext>? OnExit { get; set; }
+        public Action<Event, TContext>? OnHandle { get; set; }
+        public BotBuilder<TContext>? SubStates { get; set; }
+        public Func<TContext, string>? InitialResolver { get; set; }
 
         public StateSpec(string id) => Id = id;
 
-        public IState<C> BuildState()
+        public IState<TContext> BuildState()
         {
             if (SubStates is not null)
             {
                 var subFsm = SubStates.Build();
                 // 未指定 resolver → 退化為固定進第一個宣告的子狀態（KnowledgeKing 搭便車）。
                 var resolver = InitialResolver ?? (_ => subFsm.Current.Id);
-                return new CompositeState<C>(Id, subFsm, resolver);
+                return new CompositeState<TContext>(Id, subFsm, resolver);
             }
 
             // 有輪播:handle 發下一則、entry 先歸零（重進場從第一則開始）。
-            Action<C>? onEntry = OnEnter;
-            Action<Event, C>? onHandle = OnHandle;
+            Action<TContext>? onEntry = OnEnter;
+            Action<Event, TContext>? onHandle = OnHandle;
             if (Rotate is not null)
             {
                 var rotate = Rotate;
@@ -189,7 +168,7 @@ public sealed class BotBuilder<C> where C : IBotContext
                 };
             }
 
-            return new LeafState<C>(Id, onEntry, OnExit, onHandle);
+            return new LeafState<TContext>(Id, onEntry, OnExit, onHandle);
         }
     }
 }

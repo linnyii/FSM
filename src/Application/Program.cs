@@ -7,9 +7,7 @@ var messenger = new ConsoleMessenger();
 var ctx = new BotContext(messenger, initialTokenQuota: 100);
 var fsm = WaterballBot.Define();
 
-// 註冊表式分派器:收集所有小 parser,依 [name] 查表分派。
-var parser = new EventParser(new IEventParser[]
-{
+var parser = new EventParser([
     new NewMessageParser(),
     new NewPostParser(),
     new GoBroadcastingParser(),
@@ -19,11 +17,10 @@ var parser = new EventParser(new IEventParser[]
     new LogoutParser(),
     new ElapsedParser(),
     new StartedParser(),
-    new EndParser(),
-});
+    new EndParser()
+]);
 
-// 範例事件列表寫死在此跑(demo),不從 stdin 讀。
-string[] script =
+string[] eventsScript =
 [
     "[login] {\"userId\": \"1\", \"isAdmin\": true}",
     "[login] {\"userId\": \"2\", \"isAdmin\": false}",
@@ -67,7 +64,7 @@ string[] script =
 // 進場:啟動初始狀態(依線上人數選 Default/Interacting)。
 fsm.Current.OnEntry(ctx);
 
-foreach (var line in script)
+foreach (var line in eventsScript)
 {
     var @event = parser.Parse(line);
     if (@event is null)
