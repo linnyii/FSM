@@ -45,6 +45,8 @@ public sealed class FiniteStateMachine<C>
     public FireResult Fire(Event @event, C ctx)
     {
         // 1. 先響應。composite 會把事件委派給內層先試；內層轉移了就 Consumed。
+        //    這是「委派」非「遞迴」：composite 的 Handle 呼叫的是子 FSM 物件的 Fire（每層各自一台 FSM），
+        //    不是同一台 FSM 自我遞迴。leaf 的 Handle 做完響應（輪播/累計）一定回 NotConsumed，落到下面查表。
         if (Current.Handle(@event, ctx) == FireResult.Consumed)
             return FireResult.Consumed;
 

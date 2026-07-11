@@ -25,12 +25,19 @@ public sealed class PredicateGuard<C> : IGuard<C>
     public bool Test(Event @event, C ctx) => _predicate(@event, ctx);
 }
 
-/// <summary>Guard 的可組合性：<c>.And()</c> / <c>.Or()</c>（bot DSL 的 .when(admin).costs(5) 翻成 AND）。</summary>
-public static class GuardExtensions
+/// <summary>
+/// 把多個 guard 以 AND 組合（全過才過）。bot DSL 的 <c>.command().adminOnly().costs(5)</c>
+/// 收集成一串 guard，用它組起來（取代舊的 <c>.And()</c> 鏈）。空清單 → 恆真。
+/// </summary>
+public sealed class AndGuard<C>(params IGuard<C>[] guards) : IGuard<C>
 {
-    public static IGuard<C> And<C>(this IGuard<C> left, IGuard<C> right) =>
-        new PredicateGuard<C>((e, ctx) => left.Test(e, ctx) && right.Test(e, ctx));
+    private readonly IReadOnlyList<IGuard<C>> _guards = guards;
 
-    public static IGuard<C> Or<C>(this IGuard<C> left, IGuard<C> right) =>
-        new PredicateGuard<C>((e, ctx) => left.Test(e, ctx) || right.Test(e, ctx));
+    public bool Test(Event @event, C ctx)
+    {
+        foreach (var guard in _guards)
+            if (!guard.Test(@event, ctx))
+                return false;
+        return true;
+    }
 }

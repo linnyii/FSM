@@ -59,6 +59,7 @@ public static class WaterballBot
             stateFrom:    Normal,
             triggerCommandKey: "record",
             tokenCosts:   3,
+            does:         StartRecording,
             stateTo:      Record);
 
         bot.AddTransition(stateFrom: Normal, triggerEventName: Login, stateTo: Normal,
@@ -209,13 +210,60 @@ public static class WaterballBot
 
         record.AddLeafState(Waiting,
             onEnter: ctx => ctx.Messenger.SendChat("[Record] waiting for a broadcaster..."));
-        record.AddLeafState(Recording,
-            onEnter: ctx => ctx.Messenger.GoBroadcasting());
 
-        record.AddTransition(stateFrom: Waiting, triggerEventName: GoBroadcasting, stateTo: Recording,
+        // speak 用 onHandle 累積(不轉移):Handle 回 NotConsumed → 冒泡,外層無 speak transition → 靜默結束。
+        record.AddLeafState(Recording,
+            onEnter: ctx => ctx.Messenger.GoBroadcasting(),
+            onHandle: AccumulateSpeak);
+
+        record.AddTransition(stateFrom: Waiting, triggerEventName: BotEvents.GoBroadcasting, stateTo: Recording,
             does: (_, ctx) => ctx.SomeoneIsBroadcasting = true);
 
-        bot.AddTransition(stateFrom: Record, triggerEventName: StopRecording, stateTo: Normal,
-            does: (_, ctx) => ctx.SomeoneIsBroadcasting = false);
+        // stop broadcasting:輸出 Record Replay + 清 buffer → 回 Waiting(循環)。
+        record.AddTransition(stateFrom: Recording, triggerEventName: BotEvents.StopBroadcasting, stateTo: Waiting,
+            does: EmitRecordReplay);
+
+        // stop-recording(command,限錄音者):任意子狀態離開整個 Record 回 Normal。
+        // 若在錄音中(buffer 有內容)→ 先輸出 Record Replay;等待中則無 Replay(沒錄到東西)。
+        bot.AddTransition(stateFrom: Record, triggerEventName: BotEvents.NewMessage, stateTo: Normal,
+            when: IsStopRecordingByRecorder,
+            does: StopRecordingLeave);
+    }
+
+    // stop-recording 鐵律:tag bot + 內容 == "stop-recording" + 發話者 == 錄音者。
+    private static bool IsStopRecordingByRecorder(Event e, BotContext ctx) =>
+        e.Payload is ChatMessage m
+        && m.TagsBot
+        && m.Content == "stop-recording"
+        && m.AuthorId == ctx.RecorderId;
+
+    private static void StopRecordingLeave(Event e, BotContext ctx)
+    {
+        if (ctx.RecordBuffer.Count > 0) // 錄音中有累積 → 輸出 Replay(等待中 buffer 空 → 不輸出)
+            EmitRecordReplay(e, ctx);
+        ctx.SomeoneIsBroadcasting = false;
+    }
+
+    // ── 錄音:action / helper ──
+
+    private static void StartRecording(Event e, BotContext ctx)
+    {
+        ctx.RecorderId = (e.Payload as ChatMessage)?.AuthorId; // 錄音者 = 下 record 指令者
+        ctx.RecordBuffer.Clear();
+    }
+
+    private static void AccumulateSpeak(Event e, BotContext ctx)
+    {
+        if (e.Payload is Application.Parsing.SpeakInfo s)
+            ctx.RecordBuffer.Add(s.Content);
+    }
+
+    // Record Replay:「[Record Replay] 」+ 各筆 speak 以換行分隔,結尾 @錄音者。
+    private static void EmitRecordReplay(Event e, BotContext ctx)
+    {
+        var replay = "[Record Replay] " + string.Join("\n", ctx.RecordBuffer);
+        var tags = ctx.RecorderId is null ? null : new[] { ctx.RecorderId };
+        ctx.Messenger.SendChat(replay, tags);
+        ctx.RecordBuffer.Clear();
     }
 }

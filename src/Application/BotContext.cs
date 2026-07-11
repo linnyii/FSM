@@ -46,6 +46,13 @@ public sealed class BotContext : IBotContext
     /// <summary>知識王題庫（發題 / 判對錯 / 題數）。</summary>
     public IQuizBank QuizBank { get; }
 
+    // ── 錄音（Record）──
+    /// <summary>累積每筆 speak 文字;stop broadcasting 輸出 Record Replay 後 Clear。</summary>
+    public List<string> RecordBuffer { get; } = new();
+
+    /// <summary>錄音者（下 record 指令者）→ Record Replay 的 @標記對象。</summary>
+    public string? RecorderId { get; set; }
+
     public BotContext(IMessenger messenger, int initialTokenQuota, IQuizBank? quizBank = null)
     {
         Messenger = messenger;

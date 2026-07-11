@@ -135,10 +135,10 @@ public class WaterballBotTests
     public void Stop_recording_bubbles_to_leave_record_for_normal()
     {
         var (fsm, ctx, _) = NewBot(quota: 100);
-        fsm.Fire(Msg(NonAdmin, "record"), ctx);
+        fsm.Fire(Msg(NonAdmin, "record"), ctx);   // NonAdmin 成為錄音者
         fsm.Fire(new Event(WaterballBot.GoBroadcasting), ctx);
 
-        var result = fsm.Fire(new Event(WaterballBot.StopRecording), ctx);
+        var result = fsm.Fire(Msg(NonAdmin, "stop-recording"), ctx); // 限錄音者的指令
 
         Assert.Equal(FireResult.Consumed, result);
         Assert.Equal("Normal", fsm.Current.Id);

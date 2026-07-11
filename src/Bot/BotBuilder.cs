@@ -66,14 +66,14 @@ public sealed class BotBuilder<C> where C : IBotContext
         string? replies = null,
         Action<Event, C>? does = null)
     {
-        IGuard<C> guard = BotGuards.CommandIs<C>(triggerCommandKey); // 鐵律:tag bot + 內容 == keyword
+        var guards = new List<IGuard<C>> { BotGuards.CommandIs<C>(triggerCommandKey) }; // 鐵律:tag bot + 內容 == keyword
         if (adminOnly)
-            guard = guard.And(BotGuards.IsAdmin<C>());
+            guards.Add(BotGuards.IsAdmin<C>());
         if (tokenCosts > 0)
-            guard = guard.And(BotGuards.HasQuota<C>(tokenCosts));
+            guards.Add(BotGuards.HasQuota<C>(tokenCosts));
 
         var action = BuildAction(tokenCosts, replies, does);
-        _transitions.Add(new Transition<C>(stateFrom, BotEvents.NewMessage, stateTo, guard, action));
+        _transitions.Add(new Transition<C>(stateFrom, BotEvents.NewMessage, stateTo, new AndGuard<C>(guards.ToArray()), action));
     }
 
     /// <summary>
@@ -96,9 +96,11 @@ public sealed class BotBuilder<C> where C : IBotContext
         string? replies = null,
         Action<Event, C>? does = null)
     {
-        IGuard<C> guard = when is null ? AlwaysTrueGuard<C>.Instance : new PredicateGuard<C>(when);
-        if (costs > 0)
-            guard = guard.And(BotGuards.HasQuota<C>(costs));
+        // 一次性 when: lambda(application 專屬、不重用)保留用 PredicateGuard 包(對稱一次性 does: 用 DelegateAction)。
+        IGuard<C> baseGuard = when is null ? AlwaysTrueGuard<C>.Instance : new PredicateGuard<C>(when);
+        var guard = costs > 0
+            ? new AndGuard<C>(baseGuard, BotGuards.HasQuota<C>(costs))
+            : baseGuard;
 
         var action = BuildAction(costs, replies, does);
         _transitions.Add(new Transition<C>(stateFrom, triggerEventName, stateTo, guard, action));
