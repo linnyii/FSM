@@ -11,8 +11,11 @@ public interface IBotContext
     /// <summary>共享的社群額度（全社群共用一份）。</summary>
     int TokenQuota { get; }
 
-    /// <summary>發指令的人是不是管理員（權限判斷，供 .adminOnly() 用）。</summary>
-    bool IsCurrentUserAdmin { get; }
+    /// <summary>當前正在處理的事件的發話者（null = 匿名/系統事件）。權限判斷讀 <c>CurrentUser?.IsAdmin</c>。</summary>
+    User? CurrentUser { get; }
+
+    /// <summary>已知使用者表（由 login 事件建立/更新;id → User）。</summary>
+    IReadOnlyDictionary<string, User> Users { get; }
 
     /// <summary>注入的輸出出口。</summary>
     IMessenger Messenger { get; }

@@ -12,7 +12,7 @@ internal static class BotGuards
 
     /// <summary>權限橫切：發訊息的人是管理員。</summary>
     public static IGuard<C> IsAdmin<C>() where C : IBotContext =>
-        new PredicateGuard<C>((_, ctx) => ctx.IsCurrentUserAdmin);
+        new PredicateGuard<C>((_, ctx) => ctx.CurrentUser?.IsAdmin == true);
 
     /// <summary>額度橫切（檢查）：夠不夠 n。</summary>
     public static IGuard<C> HasQuota<C>(int amount) where C : IBotContext =>

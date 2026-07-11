@@ -7,8 +7,8 @@ public sealed class SpyMessenger : IMessenger
 {
     public List<string> Log { get; } = new();
 
-    public void SendChat(string content, IReadOnlyList<int>? tags = null) => Log.Add($"chat:{content}");
-    public void CommentPost(string postId, string content, IReadOnlyList<int>? tags = null) => Log.Add($"post:{postId}:{content}");
+    public void SendChat(string content, IReadOnlyList<string>? tags = null) => Log.Add($"chat:{content}");
+    public void CommentPost(string postId, string content, IReadOnlyList<string>? tags = null) => Log.Add($"post:{postId}:{content}");
     public void GoBroadcasting() => Log.Add("go-broadcasting");
     public void Speak(string content) => Log.Add($"speak:{content}");
     public void StopBroadcasting() => Log.Add("stop-broadcasting");

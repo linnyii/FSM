@@ -1,29 +1,35 @@
+using Application.Output;
 using Bot;
 
 namespace Application;
 
 /// <summary>
-/// 最外層的 Messenger 具體實作——懂這題的 I/O 格式（🤖: 、@ 逗號空格）。
-/// 由 main 注入到 context；FSM/bot 層只依賴 <see cref="IMessenger"/> 介面，不知道這些格式。
+/// 最外層的 Messenger 具體實作 —— 組合三個頻道格式器(<see cref="ChatRoomView"/>/<see cref="ForumView"/>/
+/// <see cref="BroadcastView"/>)。FSM/bot 層只依賴 <see cref="IMessenger"/> 介面,不知道這些格式。
 /// </summary>
 public sealed class ConsoleMessenger : IMessenger
 {
-    private readonly TextWriter _out;
+    private readonly ChatRoomView _chatRoom;
+    private readonly ForumView _forum;
+    private readonly BroadcastView _broadcast;
 
-    public ConsoleMessenger(TextWriter? output = null) => _out = output ?? Console.Out;
+    public ConsoleMessenger(TextWriter? output = null)
+    {
+        var @out = output ?? Console.Out;
+        _chatRoom = new ChatRoomView(@out);
+        _forum = new ForumView(@out);
+        _broadcast = new BroadcastView(@out);
+    }
 
-    public void SendChat(string content, IReadOnlyList<int>? tags = null) =>
-        _out.WriteLine($"🤖: {content}{FormatTags(tags)}");
+    public void SendChat(string content, IReadOnlyList<string>? tags = null) =>
+        _chatRoom.BotSays(content, tags);
 
-    public void CommentPost(string postId, string content, IReadOnlyList<int>? tags = null) =>
-        _out.WriteLine($"🤖 (post {postId}): {content}{FormatTags(tags)}");
+    public void CommentPost(string postId, string content, IReadOnlyList<string>? tags = null) =>
+        _forum.BotComments(postId, content, tags);
 
-    public void GoBroadcasting() => _out.WriteLine("🤖 go broadcasting...");
+    public void GoBroadcasting() => _broadcast.BotStarts();
 
-    public void Speak(string content) => _out.WriteLine($"🤖 speaking: {content}");
+    public void Speak(string content) => _broadcast.BotSpeaks(content);
 
-    public void StopBroadcasting() => _out.WriteLine("🤖 stop broadcasting");
-
-    private static string FormatTags(IReadOnlyList<int>? tags) =>
-        tags is { Count: > 0 } ? " " + string.Join(", ", tags.Select(t => $"@{t}")) : string.Empty;
+    public void StopBroadcasting() => _broadcast.BotStops();
 }

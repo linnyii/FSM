@@ -8,10 +8,10 @@ namespace Bot;
 public interface IMessenger
 {
     /// <summary>🤖: good to hear @3, @4</summary>
-    void SendChat(string content, IReadOnlyList<int>? tags = null);
+    void SendChat(string content, IReadOnlyList<string>? tags = null);
 
     /// <summary>在貼文底下留言。</summary>
-    void CommentPost(string postId, string content, IReadOnlyList<int>? tags = null);
+    void CommentPost(string postId, string content, IReadOnlyList<string>? tags = null);
 
     /// <summary>🤖 go broadcasting...</summary>
     void GoBroadcasting();

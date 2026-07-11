@@ -7,8 +7,8 @@ namespace Waterball.Tests;
 
 public class WaterballBotTests
 {
-    private const int Admin = 1;
-    private const int NonAdmin = 2;
+    private const string Admin = "1";
+    private const string NonAdmin = "2";
 
     private static (FiniteStateMachine<BotContext> fsm, BotContext ctx, SpyMessenger spy) NewBot(int quota = 100)
     {
@@ -19,14 +19,14 @@ public class WaterballBotTests
         return (fsm, ctx, spy);
     }
 
-    private static Event Msg(int authorId, string content, bool tagsBot = true) =>
+    private static Event Msg(string authorId, string content, bool tagsBot = true) =>
         new(BotEvents.NewMessage, new ChatMessage(authorId, content, tagsBot));
 
     [Fact]
     public void King_by_admin_rotates_then_starts_deducts_quota_and_asks_question()
     {
         var (fsm, ctx, spy) = NewBot(quota: 10);
-        ctx.IsCurrentUserAdmin = true;
+        ctx.CurrentUser = new User(Admin, isAdmin: true);
 
         fsm.Fire(Msg(Admin, "king"), ctx);
 
@@ -45,7 +45,7 @@ public class WaterballBotTests
     public void King_by_non_admin_silently_fails_but_rotation_still_fires()
     {
         var (fsm, ctx, spy) = NewBot(quota: 10);
-        ctx.IsCurrentUserAdmin = false;
+        ctx.CurrentUser = new User(NonAdmin, isAdmin: false);
 
         var result = fsm.Fire(Msg(NonAdmin, "king"), ctx);
 
@@ -59,7 +59,7 @@ public class WaterballBotTests
     public void King_with_insufficient_quota_silently_fails()
     {
         var (fsm, ctx, spy) = NewBot(quota: 3);
-        ctx.IsCurrentUserAdmin = true;
+        ctx.CurrentUser = new User(Admin, isAdmin: true);
 
         var result = fsm.Fire(Msg(Admin, "king"), ctx);
 
@@ -72,7 +72,7 @@ public class WaterballBotTests
     public void Play_again_uses_its_own_opening_line_not_kings()
     {
         var (fsm, ctx, spy) = NewBot(quota: 10);
-        ctx.IsCurrentUserAdmin = true;
+        ctx.CurrentUser = new User(Admin, isAdmin: true);
 
         fsm.Fire(Msg(Admin, "king"), ctx);        // 進 KnowledgeKing/Questioning
         fsm.Fire(new Event(WaterballBot.Elapsed), ctx); // Q0 -> Q1
@@ -95,7 +95,7 @@ public class WaterballBotTests
     public void King_stop_bubbles_from_inner_to_return_to_Normal()
     {
         var (fsm, ctx, _) = NewBot(quota: 100);
-        ctx.IsCurrentUserAdmin = true;
+        ctx.CurrentUser = new User(Admin, isAdmin: true);
         fsm.Fire(Msg(Admin, "king"), ctx);
 
         fsm.Fire(Msg(Admin, "king-stop"), ctx);

@@ -6,11 +6,11 @@ namespace Bot;
 /// </summary>
 public sealed class ChatMessage
 {
-    public int AuthorId { get; }
+    public string AuthorId { get; }
     public string Content { get; }
     public bool TagsBot { get; }
 
-    public ChatMessage(int authorId, string content, bool tagsBot)
+    public ChatMessage(string authorId, string content, bool tagsBot)
     {
         AuthorId = authorId;
         Content = content;
