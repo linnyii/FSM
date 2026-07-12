@@ -1,10 +1,5 @@
 namespace Fsm.Core;
 
-/// <summary>
-/// 普通（非子狀態機）狀態。entry/exit/handle 可由 client 用委派注入。
-/// handle 型的響應（輪播）<b>不消化事件</b>（回 <see cref="FireResult.NotConsumed"/>）——
-/// 做完響應後外層仍要查 transition 表（呼應「先響應再轉移」）。
-/// </summary>
 public class LeafState<C>(
     string id,
     Action<C>? onEntry = null,
