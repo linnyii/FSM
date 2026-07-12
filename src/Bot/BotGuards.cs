@@ -20,13 +20,3 @@ public sealed class HasQuotaGuard<C>(int amount) : IGuard<C> where C : IBotConte
 {
     public bool Test(Event @event, C ctx) => ctx.TokenQuota >= amount;
 }
-
-/// <summary>bot module 內建、可重用的 guard 工廠(回具名 class,供 BotBuilder 收集組成 AndGuard)。</summary>
-internal static class BotGuards
-{
-    public static IGuard<C> CommandIs<C>(string keyword) => new CommandIsGuard<C>(keyword);
-
-    public static IGuard<C> IsAdmin<C>() where C : IBotContext => new IsAdminGuard<C>();
-
-    public static IGuard<C> HasQuota<C>(int amount) where C : IBotContext => new HasQuotaGuard<C>(amount);
-}

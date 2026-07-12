@@ -1,7 +1,6 @@
 using Application;
 using Bot;
 using Fsm.Core;
-using Xunit;
 
 namespace Waterball.Tests;
 
@@ -123,7 +122,7 @@ public class WaterballBotTests
         fsm.Fire(Msg(NonAdmin, "record"), ctx);   // 進 Record（初始 Waiting，無人廣播）
         spy.Log.Clear();
 
-        var result = fsm.Fire(new Event(WaterballBot.GoBroadcasting), ctx);
+        var result = fsm.Fire(new Event(BotEvents.GoBroadcasting), ctx);
 
         Assert.Equal(FireResult.Consumed, result);
         Assert.Equal("Record", fsm.Current.Id);        // 內層轉 Recording，不冒泡
@@ -136,7 +135,7 @@ public class WaterballBotTests
     {
         var (fsm, ctx, _) = NewBot(quota: 100);
         fsm.Fire(Msg(NonAdmin, "record"), ctx);   // NonAdmin 成為錄音者
-        fsm.Fire(new Event(WaterballBot.GoBroadcasting), ctx);
+        fsm.Fire(new Event(BotEvents.GoBroadcasting), ctx);
 
         var result = fsm.Fire(Msg(NonAdmin, "stop-recording"), ctx); // 限錄音者的指令
 
@@ -152,7 +151,7 @@ public class WaterballBotTests
         ctx.OnlineCount = 15; // >= 10 → Interacting
 
         // login 是留在 Normal 的自我轉移，會重跑 Normal.OnEntry → resolver 重選子狀態。
-        fsm.Fire(new Event(WaterballBot.Login), ctx);
+        fsm.Fire(new Event(BotEvents.Login), ctx);
         spy.Log.Clear();
 
         // Interacting 的輪播內容跟 Default 不同，用它驗證選到了 Interacting。

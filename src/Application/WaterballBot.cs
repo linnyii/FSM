@@ -17,11 +17,6 @@ public static class WaterballBot
     private const string Waiting = "Waiting";
     private const string Recording = "Recording";
 
-    public const string Login = "login";
-    public const string Logout = "logout";
-    public const string GoBroadcasting = "go broadcasting";
-    public const string StopRecording = "stop-recording";
-    public const string Elapsed = "elapsed";
 
     private const int InteractingThreshold = 10;
 
@@ -62,9 +57,9 @@ public static class WaterballBot
             tasksToDo:         StartRecording,
             stateTo:      Record);
 
-        bot.AddTransition(stateFrom: Normal, triggerEventName: Login, stateTo: Normal,
+        bot.AddTransition(stateFrom: Normal, triggerEventName: BotEvents.Login, stateTo: Normal,
             tasksToDo: (_, ctx) => ctx.OnlineCount++);
-        bot.AddTransition(stateFrom: Normal, triggerEventName: Logout, stateTo: Normal,
+        bot.AddTransition(stateFrom: Normal, triggerEventName: BotEvents.Logout, stateTo: Normal,
             tasksToDo: (_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1));
     }
 

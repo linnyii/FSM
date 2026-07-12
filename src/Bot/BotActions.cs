@@ -13,11 +13,3 @@ public sealed class SendChatAction<C>(string content) : IAction<C> where C : IBo
 {
     public void Execute(Event @event, C ctx) => ctx.Messenger.SendChat(content);
 }
-
-/// <summary>bot module 內建、可重用的 action 工廠(回具名 class)。</summary>
-internal static class BotActions
-{
-    public static IAction<C> DeductQuota<C>(int amount) where C : IBotContext => new DeductQuotaAction<C>(amount);
-
-    public static IAction<C> SendChat<C>(string content) where C : IBotContext => new SendChatAction<C>(content);
-}
