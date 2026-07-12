@@ -3,10 +3,9 @@ using Fsm.Core;
 
 namespace Application.Events;
 
-/// <summary>login:建/更新使用者表(admin 由 payload 帶),設當前發話者。不回顯(Echo 用預設空實作)。</summary>
 public sealed record LoginEvent(string UserId, bool IsAdmin) : IDomainEvent
 {
-    public void ApplyTo(BotContext ctx)
+    public void ApplyCustomizedEventInfoTo(BotContext ctx)
     {
         ctx.UpsertUser(UserId, IsAdmin);
         ctx.CurrentUser = ctx.Users[UserId];
@@ -22,7 +21,7 @@ public sealed record LogoutEvent(string UserId) : IDomainEvent
 
 public sealed record StartedEvent(string Time, int Quota) : IDomainEvent
 {
-    public void ApplyTo(BotContext ctx) => ctx.ShowInitialQuota(Quota);
+    public void ApplyCustomizedEventInfoTo(BotContext ctx) => ctx.ShowInitialQuota(Quota);
     public Event ToFsmEvent() => new(BotEvents.Started);
 }
 

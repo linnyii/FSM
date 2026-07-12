@@ -64,13 +64,13 @@ fsm.Current.OnEntry(ctx);
 
 foreach (var line in eventsScript)
 {
-    var domainEvent = parser.Parse(line);   // string → IDomainEvent(自帶回顯/套用/轉 FSM)
+    var domainEvent = parser.Parse(line);
     if (domainEvent is null)
         continue;
     if (domainEvent is EndEvent)
         break;
 
-    domainEvent.Echo(Console.Out);          // 回顯成員事件(💬/📢/🕑/論壇);event 自己印,無 switch
-    domainEvent.ApplyTo(ctx);               // 套用到黑板(建使用者/設額度/設發話者);多型,無 switch
+    domainEvent.Echo(Console.Out);    
+    domainEvent.ApplyCustomizedEventInfoTo(ctx);               
     fsm.Fire(domainEvent.ToFsmEvent(), ctx); // 轉成 FSM 事件跑機器人回應(🤖)
 }

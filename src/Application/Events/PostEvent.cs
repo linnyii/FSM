@@ -9,7 +9,7 @@ public sealed record PostEvent(string Id, string AuthorId, string Title, string 
 {
     public void Echo(TextWriter output) => output.WriteLine($"{AuthorId}:【{Title}】{Content}{Output.Tags.Format(Tags)}");
 
-    public void ApplyTo(BotContext ctx) => ctx.SetCurrentUser(AuthorId);
+    public void ApplyCustomizedEventInfoTo(BotContext ctx) => ctx.SetCurrentUser(AuthorId);
 
     public Event ToFsmEvent() =>
         new(BotEvents.NewPost, new NewPost(Id, AuthorId, Title, Content, Tags));
