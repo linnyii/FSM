@@ -21,7 +21,7 @@ public class QuizBankTests
     [InlineData(2, "A", true)]
     public void IsCorrect_matches_option_letter(int index, string answer, bool expected)
     {
-        Assert.Equal(expected, Bank.IsCorrect(index, answer));
+        Assert.Equal(expected, Bank.CheckIsCorrect(index, answer));
     }
 
     [Theory]
@@ -30,19 +30,19 @@ public class QuizBankTests
     [InlineData("", false)]
     public void IsCorrect_edge_cases(string answer, bool expected)
     {
-        Assert.Equal(expected, Bank.IsCorrect(0, answer));
+        Assert.Equal(expected, Bank.CheckIsCorrect(0, answer));
     }
 
     [Fact]
     public void IsCorrect_null_answer_is_false()
     {
-        Assert.False(Bank.IsCorrect(0, null!));
+        Assert.False(Bank.CheckIsCorrect(0, null!));
     }
 
     [Fact]
     public void QuestionAt_contains_stem_and_four_option_labels()
     {
-        var q = Bank.QuestionAt(0);
+        var q = Bank.GetTheQuestionAt(0);
         Assert.Contains("請問哪個 SQL 語句用於選擇所有的行?", q);
         Assert.Contains("A) SELECT *", q);
         Assert.Contains("B) SELECT ALL", q);

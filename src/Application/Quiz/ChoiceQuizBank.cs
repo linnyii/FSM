@@ -2,14 +2,8 @@ using System.Text;
 
 namespace Application.Quiz;
 
-/// <summary>一題選擇題:題幹 + 四選項(依序對應 A/B/C/D)+ 正解代號('A'..'D')。</summary>
-public sealed record QuizQuestion(string Stem, string[] Options, char CorrectOption);
+public sealed record QuizQuestion(string Question, string[] Options, char CorrectOption);
 
-/// <summary>
-/// 選擇題題庫。<see cref="QuestionAt"/> 把題幹 + 四選項格式化成可發問字串;
-/// <see cref="IsCorrect"/> 只接受字母代號(Trim + 忽略大小寫;回選項內容不算對)。
-/// 之後要加題只需往 <see cref="_questions"/> 補 <see cref="QuizQuestion"/>,Count 自動反映、流程不動。
-/// </summary>
 public sealed class ChoiceQuizBank : IQuizBank
 {
     private static readonly char[] Labels = ['A', 'B', 'C', 'D'];
@@ -27,18 +21,18 @@ public sealed class ChoiceQuizBank : IQuizBank
 
     public int Count => _questions.Length;
 
-    public string QuestionAt(int index)
+    public string GetTheQuestionAt(int index)
     {
-        var q = _questions[index];
-        var sb = new StringBuilder(q.Stem);
-        for (var i = 0; i < q.Options.Length; i++)
-            sb.Append('\n').Append(Labels[i]).Append(") ").Append(q.Options[i]);
-        return sb.ToString();
+        var theQuestion = _questions[index];
+        var stringBuilder = new StringBuilder(theQuestion.Question);
+        for (var i = 0; i < theQuestion.Options.Length; i++)
+            stringBuilder.Append('\n').Append(Labels[i]).Append(") ").Append(theQuestion.Options[i]);
+        return stringBuilder.ToString();
     }
 
-    public bool IsCorrect(int index, string answer)
+    public bool CheckIsCorrect(int index, string answer)
     {
-        var a = answer?.Trim();
+        var a = answer.Trim();
         if (string.IsNullOrEmpty(a) || a.Length != 1)
             return false;
         return char.ToUpperInvariant(a[0]) == _questions[index].CorrectOption;

@@ -36,7 +36,7 @@ public class WaterballBotTests
         {
             "chat:good to hear",
             "chat:KnowledgeKing is started!",
-            $"chat:{bank.QuestionAt(0)}",
+            $"chat:{bank.GetTheQuestionAt(0)}",
             "chat:請 @bot 並回覆選項代號(A/B/C/D)作答",
         }, spy.Log);
         Assert.Equal(5, ctx.TokenQuota);                 // 扣了 5
@@ -88,7 +88,7 @@ public class WaterballBotTests
         Assert.Equal(new[]
         {
             "chat:KnowledgeKing is gonna start again!",
-            $"chat:{bank.QuestionAt(0)}",
+            $"chat:{bank.GetTheQuestionAt(0)}",
             "chat:請 @bot 並回覆選項代號(A/B/C/D)作答",
         }, spy.Log);
         Assert.Equal("KnowledgeKing", fsm.Current.Id);

@@ -52,14 +52,14 @@ public static class WaterballBot
             adminOnly: true,
             tokenCosts:     5,
             replies:   "KnowledgeKing is started!",
-            does:      (_, ctx) => ResetGame(ctx),
+            tasksToDo:      (_, ctx) => ResetGame(ctx),
             stateTo:        KnowledgeKing);
 
         bot.AddCommandTransition(
             stateFrom:    Normal,
             triggerCommandKey: "record",
             tokenCosts:   3,
-            does:         StartRecording,
+            tasksToDo:         StartRecording,
             stateTo:      Record);
 
         bot.AddTransition(stateFrom: Normal, triggerEventName: Login, stateTo: Normal,
@@ -78,7 +78,9 @@ public static class WaterballBot
 
         // onHandle 在 transition 表之前跑:每個 elapsed 先累計,20s guard 才看得到最新秒數。
         // 用 onHandle(非 self-loop transition)累計 → 不觸發 re-entry、不會被 onEnter 歸零。
-        kk.AddLeafState(Questioning, onEnter: OnEnterQuestioning, onHandle: AccumulateElapsed);
+        kk.AddLeafState(Questioning,
+            onEnter: ctx => OnEnterQuestioning(ctx),
+            onHandle: (e, ctx) => AccumulateElapsed(e, ctx));
 
         // ── 全場 1h 到:強制進 ThanksForJoining(宣告在 20s 之前 → 優先於 20s 跨題) ──
         kk.AddTransition(
@@ -94,7 +96,7 @@ public static class WaterballBot
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.NewMessage, stateTo: ThanksForJoining,
             preCondition: (e, ctx) => IsFirstCorrectAnswer(e, ctx) && IsLastQuestion(ctx),
-            tasksToDo: AwardFirstCorrect);
+            tasksToDo: (e, ctx) => AwardFirstCorrect(e, ctx));
 
         // ── 20s 到,沒答對也跨題(1h transition 已宣告在前 → 這裡不必再排除 game timeout) ──
         kk.AddTransition(
@@ -108,14 +110,15 @@ public static class WaterballBot
 
         // 累計靠 Questioning 的 onHandle(見上),不用 self-loop transition。
 
-        kk.AddLeafState(ThanksForJoining, onEnter: OnEnterThanksForJoining,
+        kk.AddLeafState(ThanksForJoining,
+            onEnter: ctx => OnEnterThanksForJoining(ctx),
             onHandle: (e, ctx) => ctx.ElapsedSecondsInThanks += SecondsOf(e));
 
         kk.AddCommandTransition(
             stateFrom:    ThanksForJoining,
             triggerCommandKey: "play again",
             replies: "KnowledgeKing is gonna start again!",
-            does:    (_, ctx) => ResetGame(ctx),
+            tasksToDo:    (_, ctx) => ResetGame(ctx),
             stateTo:      Questioning);
 
         // ── 外層:admin king-stop 回 Normal;ThanksForJoining 結束 20s → 回 Normal ──
@@ -132,7 +135,7 @@ public static class WaterballBot
 
     private static void OnEnterQuestioning(BotContext ctx)
     {
-        ctx.Messenger.SendChat(ctx.QuizBank.QuestionAt(ctx.CurrentQuestionIndex));
+        ctx.Messenger.SendChat(ctx.QuizBank.GetTheQuestionAt(ctx.CurrentQuestionIndex));
         ctx.Messenger.SendChat("請 @bot 並回覆選項代號(A/B/C/D)作答");
         ctx.ElapsedSecondsInQuestion = 0;
         ctx.FirstCorrectAnswerer = null;
@@ -160,7 +163,7 @@ public static class WaterballBot
         e.Payload is ChatMessage m
         && m.TagsBot
         && ctx.FirstCorrectAnswerer is null
-        && ctx.QuizBank.IsCorrect(ctx.CurrentQuestionIndex, m.Content);
+        && ctx.QuizBank.CheckIsCorrect(ctx.CurrentQuestionIndex, m.Content);
 
     private static void AwardFirstCorrect(Event e, BotContext ctx)
     {
@@ -214,7 +217,7 @@ public static class WaterballBot
         // speak 用 onHandle 累積(不轉移):Handle 回 NotConsumed → 冒泡,外層無 speak transition → 靜默結束。
         record.AddLeafState(Recording,
             onEnter: ctx => ctx.Messenger.GoBroadcasting(),
-            onHandle: AccumulateSpeak);
+            onHandle: (e, ctx) => AccumulateSpeak(e, ctx));
 
         record.AddTransition(stateFrom: Waiting, triggerEventName: BotEvents.GoBroadcasting, stateTo: Recording,
             tasksToDo: (_, ctx) => ctx.SomeoneIsBroadcasting = true);

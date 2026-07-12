@@ -56,7 +56,7 @@ public class KnowledgeKingFlowTests
 
         Assert.Equal(1, ctx.Users[Alice].Score);
         Assert.Contains("chat:Congrats! you got the answer!", spy.Log);
-        Assert.Contains($"chat:{Bank.QuestionAt(1)}", spy.Log); // 進到第 1 題
+        Assert.Contains($"chat:{Bank.GetTheQuestionAt(1)}", spy.Log); // 進到第 1 題
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class KnowledgeKingFlowTests
         var (fsm, ctx, spy) = StartKing();
 
         fsm.Fire(Elapsed(20), ctx); // 沒人答對,20s → 跨題
-        Assert.Contains($"chat:{Bank.QuestionAt(1)}", spy.Log);
+        Assert.Contains($"chat:{Bank.GetTheQuestionAt(1)}", spy.Log);
     }
 
     [Fact]

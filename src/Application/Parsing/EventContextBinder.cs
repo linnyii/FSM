@@ -20,7 +20,7 @@ public static class EventContextBinder
                 break;
 
             case StartedInfo started:
-                ctx.SeedQuota(started.Quota);
+                ctx.ShowInitialQuota(started.Quota);
                 break;
 
             case ChatMessage msg:

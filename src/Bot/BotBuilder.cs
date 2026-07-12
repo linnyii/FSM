@@ -55,7 +55,7 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         bool adminOnly = false,
         int tokenCosts = 0,
         string? replies = null,
-        Action<Event, TContext>? does = null)
+        Action<Event, TContext>? tasksToDo = null)
     {
         var guards = new List<IGuard<TContext>> { BotGuards.CommandIs<TContext>(triggerCommandKey) }; // 鐵律:tag bot + 內容 == keyword
         if (adminOnly)
@@ -63,7 +63,7 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         if (tokenCosts > 0)
             guards.Add(BotGuards.HasQuota<TContext>(tokenCosts));
 
-        var action = BuildAction(tokenCosts, replies, does);
+        var action = BuildAction(tokenCosts, replies, tasksToDo);
         _transitions.Add(new Transition<TContext>(stateFrom, BotEvents.NewMessage, stateTo, new AndGuard<TContext>(guards.ToArray()), action));
     }
     
