@@ -21,7 +21,7 @@ public sealed record LogoutEvent(string UserId) : IDomainEvent
 
 public sealed record StartedEvent(string Time, int Quota) : IDomainEvent
 {
-    public void ApplyCustomizedEventInfoTo(BotContext ctx) => ctx.ShowInitialQuota(Quota);
+    public void ApplyCustomizedEventInfoTo(BotContext ctx) => ctx.GetInitialQuota(Quota);
     public Event ToFsmEvent() => new(BotEvents.Started);
 }
 

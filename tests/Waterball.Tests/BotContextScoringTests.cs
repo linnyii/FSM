@@ -36,7 +36,7 @@ public class BotContextScoringTests
     public void SeedQuota_replaces_token_quota()
     {
         var ctx = New();
-        ctx.ShowInitialQuota(10);
+        ctx.GetInitialQuota(10);
         Assert.Equal(10, ctx.TokenQuota);
     }
 }

@@ -10,7 +10,6 @@ public sealed class BotContext(IMessenger messenger, int initialTokenQuota, IQui
     public IMessenger Messenger { get; } = messenger;
     public User? CurrentUser { get; set; }
 
-    // 可變的使用者表(login 事件建/更新);對外以 IReadOnlyDictionary 曝露。
     private readonly Dictionary<string, User> _users = new();
     public IReadOnlyDictionary<string, User> Users => _users;
     public int OnlineCount { get; set; }
@@ -23,7 +22,6 @@ public sealed class BotContext(IMessenger messenger, int initialTokenQuota, IQui
     public IQuizBank QuizBank { get; } = quizBank ?? new ChoiceQuizBank();
     public List<string> RecordBuffer { get; } = [];
 
-    /// <summary>錄音者（下 record 指令者）→ Record Replay 的 @標記對象。</summary>
     public string? RecorderId { get; set; }
 
     public void DeductQuota(int amount) => TokenQuota -= amount;
@@ -34,9 +32,8 @@ public sealed class BotContext(IMessenger messenger, int initialTokenQuota, IQui
         return user;
     }
 
-    /// <summary>把當前發話者設為已知使用者(訊息作者);未知則以非 admin 建一個臨時 User。</summary>
     public void SetCurrentUser(string id) =>
-        CurrentUser = _users.TryGetValue(id, out var u) ? u : new User(id, isAdmin: false);
+        CurrentUser = _users.TryGetValue(id, out var user) ? user : new User(id, isAdmin: false);
 
-    public void ShowInitialQuota(int quota) => TokenQuota = quota;
+    public void GetInitialQuota(int quota) => TokenQuota = quota;
 }
