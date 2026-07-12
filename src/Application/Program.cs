@@ -1,8 +1,7 @@
 using Application;
-using Application.Output;
+using Application.Events;
 using Application.Parsing;
 
-var echo = new InputEcho(Console.Out);
 var messenger = new ConsoleMessenger();
 var ctx = new BotContext(messenger, initialTokenQuota: 100);
 var fsm = WaterballBot.Define();
@@ -61,18 +60,17 @@ string[] eventsScript =
     "[end]",
 ];
 
-// 進場:啟動初始狀態(依線上人數選 Default/Interacting)。
 fsm.Current.OnEntry(ctx);
 
 foreach (var line in eventsScript)
 {
-    var @event = parser.Parse(line);
-    if (@event is null)
+    var domainEvent = parser.Parse(line);   // string → IDomainEvent(自帶回顯/套用/轉 FSM)
+    if (domainEvent is null)
         continue;
-    if (@event.Name == "end")
+    if (domainEvent is EndEvent)
         break;
 
-    echo.Echo(@event, line);          // 先回顯成員事件(💬/📢/🕑/論壇)
-    EventContextBinder.Apply(@event, ctx);
-    fsm.Fire(@event, ctx);            // 再跑機器人回應(🤖)
+    domainEvent.Echo(Console.Out);          // 回顯成員事件(💬/📢/🕑/論壇);event 自己印,無 switch
+    domainEvent.ApplyTo(ctx);               // 套用到黑板(建使用者/設額度/設發話者);多型,無 switch
+    fsm.Fire(domainEvent.ToFsmEvent(), ctx); // 轉成 FSM 事件跑機器人回應(🤖)
 }

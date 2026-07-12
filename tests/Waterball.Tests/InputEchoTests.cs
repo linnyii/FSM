@@ -1,73 +1,66 @@
-using Application.Output;
-using Application.Parsing;
-using Bot;
-using Fsm.Core;
+using Application.Events;
 using Xunit;
 
 namespace Waterball.Tests;
 
 public class InputEchoTests
 {
-    private static string Echo(Event e, string rawLine)
+    private static string Echo(IDomainEvent e)
     {
         var sw = new StringWriter();
-        new InputEcho(sw).Echo(e, rawLine);
+        e.Echo(sw);
         return sw.ToString().TrimEnd('\r', '\n');
     }
 
     [Fact]
-    public void Chat_message_with_tags()
+    public void Chat_event_echoes_with_tags()
     {
-        var e = new Event(BotEvents.NewMessage, new ChatMessage("3", "哈哈", tagsBot: false, tags: new[] { "1", "2", "4" }));
-        Assert.Equal("💬 3: 哈哈 @1, @2, @4", Echo(e, "[new message] {}"));
+        Assert.Equal("💬 3: 哈哈 @1, @2, @4", Echo(new ChatEvent("3", "哈哈", new[] { "1", "2", "4" })));
     }
 
     [Fact]
-    public void Chat_message_without_tags()
+    public void Chat_event_echoes_without_tags()
     {
-        var e = new Event(BotEvents.NewMessage, new ChatMessage("1", "早安", tagsBot: false));
-        Assert.Equal("💬 1: 早安", Echo(e, "[new message] {}"));
+        Assert.Equal("💬 1: 早安", Echo(new ChatEvent("1", "早安", [])));
     }
 
     [Fact]
-    public void New_post()
+    public void Post_event_echoes()
     {
-        var e = new Event(BotEvents.NewPost, new NewPost("1", "4", "標題", "內文", new[] { "1", "2" }));
-        Assert.Equal("4:【標題】內文 @1, @2", Echo(e, "[new post] {}"));
+        Assert.Equal("4:【標題】內文 @1, @2", Echo(new PostEvent("1", "4", "標題", "內文", new[] { "1", "2" })));
     }
 
     [Fact]
-    public void Go_broadcasting()
+    public void Go_broadcasting_echoes()
     {
-        var e = new Event(BotEvents.GoBroadcasting, new BroadcastInfo("4"));
-        Assert.Equal("📢 4 is broadcasting...", Echo(e, "[go broadcasting] {}"));
+        Assert.Equal("📢 4 is broadcasting...", Echo(new GoBroadcastingEvent("4")));
     }
 
     [Fact]
-    public void Speak()
+    public void Speak_echoes()
     {
-        var e = new Event(BotEvents.Speak, new SpeakInfo("4", "大家早安"));
-        Assert.Equal("📢 4: 大家早安", Echo(e, "[speak] {}"));
+        Assert.Equal("📢 4: 大家早安", Echo(new SpeakEvent("4", "大家早安")));
     }
 
     [Fact]
-    public void Stop_broadcasting()
+    public void Stop_broadcasting_echoes()
     {
-        var e = new Event(BotEvents.StopBroadcasting, new BroadcastInfo("4"));
-        Assert.Equal("📢 4 stop broadcasting", Echo(e, "[stop broadcasting] {}"));
+        Assert.Equal("📢 4 stop broadcasting", Echo(new StopBroadcastingEvent("4")));
     }
 
     [Fact]
-    public void Elapsed_uses_raw_shell_not_converted_seconds()
+    public void Elapsed_echoes_raw_shell_not_converted_seconds()
     {
-        var e = new Event(BotEvents.Elapsed, 3600); // payload 是換算後 seconds
-        Assert.Equal("🕑 1 hours elapsed...", Echo(e, "[1 hours elapsed]")); // 回顯用原始外殼
+        // payload seconds = 3600,但回顯用原始外殼 "1 hours"。
+        Assert.Equal("🕑 1 hours elapsed...", Echo(new ElapsedEvent(3600, "1 hours")));
     }
 
     [Fact]
-    public void Login_and_logout_are_not_echoed()
+    public void Login_logout_started_end_do_not_echo()
     {
-        Assert.Equal("", Echo(new Event(BotEvents.Login, new LoginInfo("1", true)), "[login] {}"));
-        Assert.Equal("", Echo(new Event(BotEvents.Logout, new LogoutInfo("1")), "[logout] {}"));
+        Assert.Equal("", Echo(new LoginEvent("1", true)));
+        Assert.Equal("", Echo(new LogoutEvent("1")));
+        Assert.Equal("", Echo(new StartedEvent("t", 10)));
+        Assert.Equal("", Echo(new EndEvent()));
     }
 }

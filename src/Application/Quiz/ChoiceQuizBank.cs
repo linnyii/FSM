@@ -32,7 +32,7 @@ public sealed class ChoiceQuizBank : IQuizBank
 
     public bool CheckIsCorrect(int index, string answer)
     {
-        var a = answer.Trim();
+        var a = answer?.Trim();
         if (string.IsNullOrEmpty(a) || a.Length != 1)
             return false;
         return char.ToUpperInvariant(a[0]) == _questions[index].CorrectOption;

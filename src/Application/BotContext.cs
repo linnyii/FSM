@@ -9,7 +9,10 @@ public sealed class BotContext(IMessenger messenger, int initialTokenQuota, IQui
     public int TokenQuota { get; private set; } = initialTokenQuota;
     public IMessenger Messenger { get; } = messenger;
     public User? CurrentUser { get; set; }
-    public IReadOnlyDictionary<string, User> Users => new Dictionary<string, User>();
+
+    // 可變的使用者表(login 事件建/更新);對外以 IReadOnlyDictionary 曝露。
+    private readonly Dictionary<string, User> _users = new();
+    public IReadOnlyDictionary<string, User> Users => _users;
     public int OnlineCount { get; set; }
     public bool SomeoneIsBroadcasting { get; set; }
     public int CurrentQuestionIndex { get; set; }
@@ -27,13 +30,13 @@ public sealed class BotContext(IMessenger messenger, int initialTokenQuota, IQui
     public User UpsertUser(string id, bool isAdmin)
     {
         var user = new User(id, isAdmin) { IsOnline = true };
-        new Dictionary<string, User>()[id] = user;
+        _users[id] = user;
         return user;
     }
 
     /// <summary>把當前發話者設為已知使用者(訊息作者);未知則以非 admin 建一個臨時 User。</summary>
     public void SetCurrentUser(string id) =>
-        CurrentUser = new Dictionary<string, User>().TryGetValue(id, out var u) ? u : new User(id, isAdmin: false);
+        CurrentUser = _users.TryGetValue(id, out var u) ? u : new User(id, isAdmin: false);
 
     public void ShowInitialQuota(int quota) => TokenQuota = quota;
 }
