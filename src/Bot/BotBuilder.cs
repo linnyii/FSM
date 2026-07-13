@@ -109,17 +109,15 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         };
     }
 
-    private sealed class StateSpec
+    private sealed class StateSpec(string id)
     {
-        public string Id { get; }
+        private string Id { get; } = id;
         public Rotate<TContext>? Rotate { get; set; }
         public Action<TContext>? OnEntry { get; set; }
         public Action<TContext>? OnExit { get; set; }
         public Action<Event, TContext>? OnHandle { get; set; }
         public BotBuilder<TContext>? SubStates { get; set; }
         public Func<TContext, string>? InitialResolver { get; set; }
-
-        public StateSpec(string id) => Id = id;
 
         public IState<TContext> BuildState()
         {
@@ -130,9 +128,8 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
                 return new CompositeState<TContext>(Id, subFsm, resolver);
             }
 
-            // 有輪播:Rotate 自己把 handle/entry 裝飾起來（handle 先跑使用者再吐輪播、entry 先跑使用者再歸零索引）。
-            Action<TContext>? onEntry = Rotate is null ? OnEntry : Rotate.DecorateEntry(OnEntry);
-            Action<Event, TContext>? onHandle = Rotate is null ? OnHandle : Rotate.DecorateHandle(OnHandle);
+            var onEntry = Rotate is null ? OnEntry : Rotate.DecorateEntry(OnEntry);
+            var onHandle = Rotate is null ? OnHandle : Rotate.DecorateHandle(OnHandle);
 
             return new LeafState<TContext>(Id, onEntry, OnExit, onHandle);
         }
