@@ -2,7 +2,6 @@ using Application;
 using Application.Events;
 using Application.Parsing;
 
-//can enhance for botConsoleMessenger
 var messenger = new BotConsoleMessenger();
 var ctx = new BotContext(messenger, initialTokenQuota: 100);
 var fsm = WaterballBot.Define();
