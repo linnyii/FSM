@@ -1,10 +1,12 @@
 using Bot;
 using Fsm.Core;
+using static Application.BotFeatures;
 
 namespace Application;
 
 public static class WaterballBot
 {
+
     private const string Normal = "Normal";
     private const string Default = "Default";
     private const string Interacting = "Interacting";
@@ -40,26 +42,17 @@ public static class WaterballBot
         normal.AddLeafState(Interacting,
             botAutoRotateMessage: ["nice to see you", "welcome back", "let's chat"]);
 
-        bot.AddCommandTransition(
-            stateFrom:      Normal,
-            triggerCommandKey:   "king",
-            adminOnly: true,
-            tokenCosts:     5,
-            replies:   "KnowledgeKing is started!",
-            tasksToDo:      (_, ctx) => KnowledgeKingPolicy.ResetGame(ctx),
-            stateTo:        KnowledgeKing);
+        bot.AddCommandTransition(Normal, "king", KnowledgeKing,
+            AdminOnly(), Costs(5), Reply("KnowledgeKing is started!"),
+            Do((_, ctx) => KnowledgeKingPolicy.ResetGame(ctx)));
 
-        bot.AddCommandTransition(
-            stateFrom:    Normal,
-            triggerCommandKey: "record",
-            tokenCosts:   3,
-            tasksToDo:         RecordingPolicy.StartRecording,
-            stateTo:      Record);
+        bot.AddCommandTransition(Normal, "record", Record,
+            Costs(3), Do(RecordingPolicy.StartRecording));
 
-        bot.AddTransition(stateFrom: Normal, triggerEventName: BotEvents.Login, stateTo: Normal,
-            tasksToDo: (_, ctx) => ctx.OnlineCount++);
-        bot.AddTransition(stateFrom: Normal, triggerEventName: BotEvents.Logout, stateTo: Normal,
-            tasksToDo: (_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1));
+        bot.AddTransition(Normal, BotEvents.Login, Normal,
+            Do((_, ctx) => ctx.OnlineCount++));
+        bot.AddTransition(Normal, BotEvents.Logout, Normal,
+            Do((_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1)));
     }
 
     private static void DefineKnowledgeKingState(BotBuilder<BotContext> bot)
@@ -70,46 +63,37 @@ public static class WaterballBot
             onEnter: KnowledgeKingPolicy.OnEnterQuestioning,
             onHandle: KnowledgeKingPolicy.AccumulateElapsed);
 
-        kk.AddTransition(
-            stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: ThanksForJoining,
-            preCondition: (_, ctx) => KnowledgeKingPolicy.IsGameTimeout(ctx));
+        kk.AddTransition(Questioning, BotEvents.Elapsed, ThanksForJoining,
+            When((_, ctx) => KnowledgeKingPolicy.IsGameTimeout(ctx)));
 
-        kk.AddTransition(
-            stateFrom: Questioning, triggerEventName: BotEvents.NewMessage, stateTo: Questioning,
-            preCondition: (e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && !KnowledgeKingPolicy.IsLastQuestion(ctx),
-            tasksToDo: (e, ctx) => { KnowledgeKingPolicy.AwardFirstCorrect(e, ctx); ctx.CurrentQuestionIndex++; });
+        kk.AddTransition(Questioning, BotEvents.NewMessage, Questioning,
+            When((e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && !KnowledgeKingPolicy.IsLastQuestion(ctx)),
+            Do((e, ctx) => { KnowledgeKingPolicy.AwardFirstCorrect(e, ctx); ctx.CurrentQuestionIndex++; }));
 
-        kk.AddTransition(
-            stateFrom: Questioning, triggerEventName: BotEvents.NewMessage, stateTo: ThanksForJoining,
-            preCondition: (e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && KnowledgeKingPolicy.IsLastQuestion(ctx),
-            tasksToDo: KnowledgeKingPolicy.AwardFirstCorrect);
+        kk.AddTransition(Questioning, BotEvents.NewMessage, ThanksForJoining,
+            When((e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && KnowledgeKingPolicy.IsLastQuestion(ctx)),
+            Do(KnowledgeKingPolicy.AwardFirstCorrect));
 
-        kk.AddTransition(
-            stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: Questioning,
-            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= KnowledgeKingPolicy.QuestionTimeoutSeconds && !KnowledgeKingPolicy.IsLastQuestion(ctx),
-            tasksToDo: (_, ctx) => ctx.CurrentQuestionIndex++);
+        kk.AddTransition(Questioning, BotEvents.Elapsed, Questioning,
+            When((_, ctx) => ctx.ElapsedSecondsInQuestion >= KnowledgeKingPolicy.QuestionTimeoutSeconds && !KnowledgeKingPolicy.IsLastQuestion(ctx)),
+            Do((_, ctx) => ctx.CurrentQuestionIndex++));
 
-        kk.AddTransition(
-            stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: ThanksForJoining,
-            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= KnowledgeKingPolicy.QuestionTimeoutSeconds && KnowledgeKingPolicy.IsLastQuestion(ctx));
+        kk.AddTransition(Questioning, BotEvents.Elapsed, ThanksForJoining,
+            When((_, ctx) => ctx.ElapsedSecondsInQuestion >= KnowledgeKingPolicy.QuestionTimeoutSeconds && KnowledgeKingPolicy.IsLastQuestion(ctx)));
 
 
         kk.AddLeafState(ThanksForJoining,
             onEnter: KnowledgeKingPolicy.OnEnterThanksForJoining,
             onHandle: (e, ctx) => ctx.ElapsedSecondsInThanks += KnowledgeKingPolicy.SecondsOf(e));
 
-        kk.AddCommandTransition(
-            stateFrom:    ThanksForJoining,
-            triggerCommandKey: "play again",
-            replies: "KnowledgeKing is gonna start again!",
-            tasksToDo:    (_, ctx) => KnowledgeKingPolicy.ResetGame(ctx),
-            stateTo:      Questioning);
+        kk.AddCommandTransition(ThanksForJoining, "play again", Questioning,
+            Reply("KnowledgeKing is gonna start again!"),
+            Do((_, ctx) => KnowledgeKingPolicy.ResetGame(ctx)));
 
-        bot.AddCommandTransition(stateFrom: KnowledgeKing, triggerCommandKey: "king-stop", adminOnly: true, stateTo: Normal);
+        bot.AddCommandTransition(KnowledgeKing, "king-stop", Normal, AdminOnly());
 
-        bot.AddTransition(
-            stateFrom: KnowledgeKing, triggerEventName: BotEvents.Elapsed, stateTo: Normal,
-            preCondition: (_, ctx) => ctx.ElapsedSecondsInThanks >= KnowledgeKingPolicy.ThanksTimeoutSeconds);
+        bot.AddTransition(KnowledgeKing, BotEvents.Elapsed, Normal,
+            When((_, ctx) => ctx.ElapsedSecondsInThanks >= KnowledgeKingPolicy.ThanksTimeoutSeconds));
     }
 
     private static void DefineRecordState(BotBuilder<BotContext> bot)
@@ -124,14 +108,14 @@ public static class WaterballBot
             onEnter: ctx => ctx.Messenger.GoBroadcasting(),
             onHandle: RecordingPolicy.AccumulateSpeak);
 
-        record.AddTransition(stateFrom: Waiting, triggerEventName: BotEvents.GoBroadcasting, stateTo: Recording,
-            tasksToDo: (_, ctx) => ctx.SomeoneIsBroadcasting = true);
+        record.AddTransition(Waiting, BotEvents.GoBroadcasting, Recording,
+            Do((_, ctx) => ctx.SomeoneIsBroadcasting = true));
 
-        record.AddTransition(stateFrom: Recording, triggerEventName: BotEvents.StopBroadcasting, stateTo: Waiting,
-            tasksToDo: RecordingPolicy.RecordReplay);
+        record.AddTransition(Recording, BotEvents.StopBroadcasting, Waiting,
+            Do(RecordingPolicy.RecordReplay));
 
-        bot.AddTransition(stateFrom: Record, triggerEventName: BotEvents.NewMessage, stateTo: Normal,
-            preCondition: RecordingPolicy.IsStopRecordingByCurrentRecorder,
-            tasksToDo: RecordingPolicy.RecordReplayForStopRecordingLeave);
+        bot.AddTransition(Record, BotEvents.NewMessage, Normal,
+            When(RecordingPolicy.IsStopRecordingByCurrentRecorder),
+            Do(RecordingPolicy.RecordReplayForStopRecordingLeave));
     }
 }

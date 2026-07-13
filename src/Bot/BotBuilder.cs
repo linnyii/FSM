@@ -40,36 +40,23 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         string stateFrom,
         string triggerCommandKey,
         string stateTo,
-        bool adminOnly = false,
-        int tokenCosts = 0,
-        string? replies = null,
-        Action<Event, TContext>? tasksToDo = null)
+        params ITransitionFeature<TContext>[] features)
     {
-        var guards = new List<IGuard<TContext>> { new CommandIsGuard<TContext>(triggerCommandKey) }; // 鐵律:tag bot + 內容 == keyword
-        if (adminOnly)
-            guards.Add(new IsAdminGuard<TContext>());
-        if (tokenCosts > 0)
-            guards.Add(new HasQuotaGuard<TContext>(tokenCosts));
-
-        var action = BuildAction(tokenCosts, replies, tasksToDo);
-        _transitions.Add(new Transition<TContext>(stateFrom, BotEvents.NewMessage, stateTo, new GuardList<TContext>(guards.ToArray()), action));
+        var all = features.Prepend(new CommandFeature<TContext>(triggerCommandKey));
+        AddTransition(stateFrom, BotEvents.NewMessage, stateTo, all.ToArray());
     }
-    
+
     public void AddTransition(
         string stateFrom,
         string triggerEventName,
         string stateTo,
-        Func<Event, TContext, bool>? preCondition = null,
-        int tokenCosts = 0,
-        string? showingMessage = null,
-        Action<Event, TContext>? tasksToDo = null)
+        params ITransitionFeature<TContext>[] features)
     {
-        IGuard<TContext> baseGuard = preCondition is null ? AlwaysTrueGuard<TContext>.Instance : new PredicateGuard<TContext>(preCondition);
-        var guard = tokenCosts > 0
-            ? new GuardList<TContext>(baseGuard, new HasQuotaGuard<TContext>(tokenCosts))
-            : baseGuard;
+        var guards = features.SelectMany(f => f.Guards()).ToArray();
+        var actions = features.SelectMany(f => f.Actions()).ToArray();
 
-        var action = BuildAction(tokenCosts, showingMessage, tasksToDo);
+        IGuard<TContext> guard = guards.Length == 0 ? AlwaysTrueGuard<TContext>.Instance : new GuardList<TContext>(guards);
+        var action = BuildAction(actions);
         _transitions.Add(new Transition<TContext>(stateFrom, triggerEventName, stateTo, guard, action));
     }
 
@@ -91,23 +78,13 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         return spec;
     }
 
-    private static IAction<TContext> BuildAction(int costs, string? replies, Action<Event, TContext>? does)
-    {
-        var parts = new List<IAction<TContext>>();
-        if (costs > 0)
-            parts.Add(new DeductQuotaAction<TContext>(costs));
-        if (replies is not null)
-            parts.Add(new SendChatAction<TContext>(replies));
-        if (does is not null)
-            parts.Add(new DelegateAction<TContext>(does));
-
-        return parts.Count switch
+    private static IAction<TContext> BuildAction(IReadOnlyList<IAction<TContext>> actions) =>
+        actions.Count switch
         {
             0 => NoOpAction<TContext>.Instance,
-            1 => parts[0],
-            _ => new ActionList<TContext>(parts.ToArray()),
+            1 => actions[0],
+            _ => new ActionList<TContext>(actions.ToArray()),
         };
-    }
 
     private sealed class StateSpec(string id)
     {
