@@ -55,14 +55,14 @@ public class NamedGuardActionTests
     public void AndGuard_requires_all_to_pass()
     {
         var (e, ctx) = Setup("king", tagsBot: true, admin: true, quota: 5);
-        var all = new AndGuard<BotContext>(
+        var all = new GuardList<BotContext>(
             new CommandIsGuard<BotContext>("king"),
             new IsAdminGuard<BotContext>(),
             new HasQuotaGuard<BotContext>(5));
         Assert.True(all.Test(e, ctx));
 
         // 缺額度 → 整體 false
-        var lacking = new AndGuard<BotContext>(
+        var lacking = new GuardList<BotContext>(
             new CommandIsGuard<BotContext>("king"),
             new HasQuotaGuard<BotContext>(6));
         Assert.False(lacking.Test(e, ctx));
@@ -72,7 +72,7 @@ public class NamedGuardActionTests
     public void AndGuard_empty_is_always_true()
     {
         var (e, ctx) = Setup("x", tagsBot: false, admin: false, quota: 0);
-        Assert.True(new AndGuard<BotContext>().Test(e, ctx));
+        Assert.True(new GuardList<BotContext>().Test(e, ctx));
     }
 
     [Fact]

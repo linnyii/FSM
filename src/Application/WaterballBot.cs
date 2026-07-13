@@ -8,15 +8,14 @@ public static class WaterballBot
     private const string Normal = "Normal";
     private const string Default = "Default";
     private const string Interacting = "Interacting";
-    
+
     private const string KnowledgeKing = "KnowledgeKing";
     private const string Questioning = "Questioning";
     private const string ThanksForJoining = "ThanksForJoining";
-    
+
     private const string Record = "Record";
     private const string Waiting = "Waiting";
     private const string Recording = "Recording";
-
 
     private const int InteractingThreshold = 10;
 
@@ -47,14 +46,14 @@ public static class WaterballBot
             adminOnly: true,
             tokenCosts:     5,
             replies:   "KnowledgeKing is started!",
-            tasksToDo:      (_, ctx) => ResetGame(ctx),
+            tasksToDo:      (_, ctx) => KnowledgeKingPolicy.ResetGame(ctx),
             stateTo:        KnowledgeKing);
 
         bot.AddCommandTransition(
             stateFrom:    Normal,
             triggerCommandKey: "record",
             tokenCosts:   3,
-            tasksToDo:         StartRecording,
+            tasksToDo:         RecordingPolicy.StartRecording,
             stateTo:      Record);
 
         bot.AddTransition(stateFrom: Normal, triggerEventName: BotEvents.Login, stateTo: Normal,
@@ -63,142 +62,54 @@ public static class WaterballBot
             tasksToDo: (_, ctx) => ctx.OnlineCount = Math.Max(0, ctx.OnlineCount - 1));
     }
 
-    private const int QuestionTimeoutSeconds = 20;
-    private const int GameTimeoutSeconds = 3600;
-    private const int ThanksTimeoutSeconds = 20;
-
     private static void DefineKnowledgeKingState(BotBuilder<BotContext> bot)
     {
         var kk = bot.AddCompositeState(KnowledgeKing); // 無 resolver → 固定進第一個宣告的子狀態
 
-        // onHandle 在 transition 表之前跑:每個 elapsed 先累計,20s guard 才看得到最新秒數。
-        // 用 onHandle(非 self-loop transition)累計 → 不觸發 re-entry、不會被 onEnter 歸零。
         kk.AddLeafState(Questioning,
-            onEnter: ctx => OnEnterQuestioning(ctx),
-            onHandle: (e, ctx) => AccumulateElapsed(e, ctx));
+            onEnter: KnowledgeKingPolicy.OnEnterQuestioning,
+            onHandle: KnowledgeKingPolicy.AccumulateElapsed);
 
-        // ── 全場 1h 到:強制進 ThanksForJoining(宣告在 20s 之前 → 優先於 20s 跨題) ──
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: ThanksForJoining,
-            preCondition: (_, ctx) => IsGameTimeout(ctx));
+            preCondition: (_, ctx) => KnowledgeKingPolicy.IsGameTimeout(ctx));
 
-        // ── 答對:new message + tag bot + 判對 + 本題尚無人答對(首答) ──
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.NewMessage, stateTo: Questioning,
-            preCondition: (e, ctx) => IsFirstCorrectAnswer(e, ctx) && !IsLastQuestion(ctx),
-            tasksToDo: (e, ctx) => { AwardFirstCorrect(e, ctx); ctx.CurrentQuestionIndex++; });
+            preCondition: (e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && !KnowledgeKingPolicy.IsLastQuestion(ctx),
+            tasksToDo: (e, ctx) => { KnowledgeKingPolicy.AwardFirstCorrect(e, ctx); ctx.CurrentQuestionIndex++; });
 
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.NewMessage, stateTo: ThanksForJoining,
-            preCondition: (e, ctx) => IsFirstCorrectAnswer(e, ctx) && IsLastQuestion(ctx),
-            tasksToDo: (e, ctx) => AwardFirstCorrect(e, ctx));
+            preCondition: (e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && KnowledgeKingPolicy.IsLastQuestion(ctx),
+            tasksToDo: KnowledgeKingPolicy.AwardFirstCorrect);
 
-        // ── 20s 到,沒答對也跨題(1h transition 已宣告在前 → 這裡不必再排除 game timeout) ──
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: Questioning,
-            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= QuestionTimeoutSeconds && !IsLastQuestion(ctx),
+            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= KnowledgeKingPolicy.QuestionTimeoutSeconds && !KnowledgeKingPolicy.IsLastQuestion(ctx),
             tasksToDo: (_, ctx) => ctx.CurrentQuestionIndex++);
 
         kk.AddTransition(
             stateFrom: Questioning, triggerEventName: BotEvents.Elapsed, stateTo: ThanksForJoining,
-            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= QuestionTimeoutSeconds && IsLastQuestion(ctx));
+            preCondition: (_, ctx) => ctx.ElapsedSecondsInQuestion >= KnowledgeKingPolicy.QuestionTimeoutSeconds && KnowledgeKingPolicy.IsLastQuestion(ctx));
 
-        // 累計靠 Questioning 的 onHandle(見上),不用 self-loop transition。
 
         kk.AddLeafState(ThanksForJoining,
-            onEnter: ctx => OnEnterThanksForJoining(ctx),
-            onHandle: (e, ctx) => ctx.ElapsedSecondsInThanks += SecondsOf(e));
+            onEnter: KnowledgeKingPolicy.OnEnterThanksForJoining,
+            onHandle: (e, ctx) => ctx.ElapsedSecondsInThanks += KnowledgeKingPolicy.SecondsOf(e));
 
         kk.AddCommandTransition(
             stateFrom:    ThanksForJoining,
             triggerCommandKey: "play again",
             replies: "KnowledgeKing is gonna start again!",
-            tasksToDo:    (_, ctx) => ResetGame(ctx),
+            tasksToDo:    (_, ctx) => KnowledgeKingPolicy.ResetGame(ctx),
             stateTo:      Questioning);
 
-        // ── 外層:admin king-stop 回 Normal;ThanksForJoining 結束 20s → 回 Normal ──
-        // (兩者目標都是外層 Normal → 必須宣告在外層。Thanks-20s 靠 ElapsedSecondsInThanks 當「在 Thanks」的代理條件;
-        //  內層 ThanksForJoining 無對應 elapsed transition → 冒泡到外層。)
         bot.AddCommandTransition(stateFrom: KnowledgeKing, triggerCommandKey: "king-stop", adminOnly: true, stateTo: Normal);
 
         bot.AddTransition(
             stateFrom: KnowledgeKing, triggerEventName: BotEvents.Elapsed, stateTo: Normal,
-            preCondition: (_, ctx) => ctx.ElapsedSecondsInThanks >= ThanksTimeoutSeconds);
-    }
-
-    // ── 知識王:狀態進場 ──
-
-    private static void OnEnterQuestioning(BotContext ctx)
-    {
-        ctx.Messenger.SendChat(ctx.QuizBank.GetTheQuestionAt(ctx.CurrentQuestionIndex));
-        ctx.Messenger.SendChat("請 @bot 並回覆選項代號(A/B/C/D)作答");
-        ctx.ElapsedSecondsInQuestion = 0;
-        ctx.FirstCorrectAnswerer = null;
-    }
-
-    private static void OnEnterThanksForJoining(BotContext ctx)
-    {
-        ctx.ElapsedSecondsInThanks = 0;
-        var result = BuildResult(ctx);
-        if (ctx.SomeoneIsBroadcasting)
-            ctx.Messenger.SendChat(result);
-        else
-            ctx.Messenger.Speak(result); // 無人廣播 → 語音公布
-    }
-
-    // ── 知識王:guard / action helper ──
-
-    private static bool IsLastQuestion(BotContext ctx) =>
-        ctx.CurrentQuestionIndex >= ctx.QuizBank.Count - 1;
-
-    private static bool IsGameTimeout(BotContext ctx) =>
-        ctx.ElapsedSecondsInGame >= GameTimeoutSeconds;
-
-    private static bool IsFirstCorrectAnswer(Event e, BotContext ctx) =>
-        e.Payload is ChatMessage m
-        && m.TagsBot
-        && ctx.FirstCorrectAnswerer is null
-        && ctx.QuizBank.CheckIsCorrect(ctx.CurrentQuestionIndex, m.Content);
-
-    private static void AwardFirstCorrect(Event e, BotContext ctx)
-    {
-        var m = (ChatMessage)e.Payload!;
-        ctx.FirstCorrectAnswerer = m.AuthorId;
-        if (ctx.Users.TryGetValue(m.AuthorId, out var user))
-            user.Score++;
-        ctx.Messenger.SendChat("Congrats! you got the answer!", new[] { m.AuthorId });
-    }
-
-    private static void AccumulateElapsed(Event e, BotContext ctx)
-    {
-        var seconds = SecondsOf(e);
-        ctx.ElapsedSecondsInQuestion += seconds;
-        ctx.ElapsedSecondsInGame += seconds;
-    }
-
-    private static int SecondsOf(Event e) => e.Payload is int s ? s : 0;
-
-    private static void ResetGame(BotContext ctx)
-    {
-        ctx.CurrentQuestionIndex = 0;
-        ctx.ElapsedSecondsInGame = 0;
-        ctx.ElapsedSecondsInQuestion = 0;
-        ctx.ElapsedSecondsInThanks = 0; // 清掉上一場 Thanks 累計,避免新一場 Questioning 誤觸「Thanks 20s → Normal」
-        foreach (var user in ctx.Users.Values)
-            user.Score = 0;
-    }
-
-    // 結果:唯一最高分 → winner;多人同分 / 全 0 → Tie!。
-    private static string BuildResult(BotContext ctx)
-    {
-        var top = ctx.Users.Values
-            .OrderByDescending(u => u.Score)
-            .ToList();
-        if (top.Count == 0 || top[0].Score == 0)
-            return "Tie!";
-        if (top.Count > 1 && top[1].Score == top[0].Score)
-            return "Tie!";
-        return $"The winner is {top[0].Id}";
+            preCondition: (_, ctx) => ctx.ElapsedSecondsInThanks >= KnowledgeKingPolicy.ThanksTimeoutSeconds);
     }
 
     private static void DefineRecordState(BotBuilder<BotContext> bot)
@@ -209,59 +120,18 @@ public static class WaterballBot
         record.AddLeafState(Waiting,
             onEnter: ctx => ctx.Messenger.SendChat("[Record] waiting for a broadcaster..."));
 
-        // speak 用 onHandle 累積(不轉移):Handle 回 NotConsumed → 冒泡,外層無 speak transition → 靜默結束。
         record.AddLeafState(Recording,
             onEnter: ctx => ctx.Messenger.GoBroadcasting(),
-            onHandle: (e, ctx) => AccumulateSpeak(e, ctx));
+            onHandle: RecordingPolicy.AccumulateSpeak);
 
         record.AddTransition(stateFrom: Waiting, triggerEventName: BotEvents.GoBroadcasting, stateTo: Recording,
             tasksToDo: (_, ctx) => ctx.SomeoneIsBroadcasting = true);
 
-        // stop broadcasting:輸出 Record Replay + 清 buffer → 回 Waiting(循環)。
         record.AddTransition(stateFrom: Recording, triggerEventName: BotEvents.StopBroadcasting, stateTo: Waiting,
-            tasksToDo: EmitRecordReplay);
+            tasksToDo: RecordingPolicy.RecordReplay);
 
-        // stop-recording(command,限錄音者):任意子狀態離開整個 Record 回 Normal。
-        // 若在錄音中(buffer 有內容)→ 先輸出 Record Replay;等待中則無 Replay(沒錄到東西)。
         bot.AddTransition(stateFrom: Record, triggerEventName: BotEvents.NewMessage, stateTo: Normal,
-            preCondition: IsStopRecordingByRecorder,
-            tasksToDo: StopRecordingLeave);
-    }
-
-    // stop-recording 鐵律:tag bot + 內容 == "stop-recording" + 發話者 == 錄音者。
-    private static bool IsStopRecordingByRecorder(Event e, BotContext ctx) =>
-        e.Payload is ChatMessage m
-        && m.TagsBot
-        && m.Content == "stop-recording"
-        && m.AuthorId == ctx.RecorderId;
-
-    private static void StopRecordingLeave(Event e, BotContext ctx)
-    {
-        if (ctx.RecordBuffer.Count > 0) // 錄音中有累積 → 輸出 Replay(等待中 buffer 空 → 不輸出)
-            EmitRecordReplay(e, ctx);
-        ctx.SomeoneIsBroadcasting = false;
-    }
-
-    // ── 錄音:action / helper ──
-
-    private static void StartRecording(Event e, BotContext ctx)
-    {
-        ctx.RecorderId = (e.Payload as ChatMessage)?.AuthorId; // 錄音者 = 下 record 指令者
-        ctx.RecordBuffer.Clear();
-    }
-
-    private static void AccumulateSpeak(Event e, BotContext ctx)
-    {
-        if (e.Payload is Application.Parsing.SpeakInfo s)
-            ctx.RecordBuffer.Add(s.Content);
-    }
-
-    // Record Replay:「[Record Replay] 」+ 各筆 speak 以換行分隔,結尾 @錄音者。
-    private static void EmitRecordReplay(Event e, BotContext ctx)
-    {
-        var replay = "[Record Replay] " + string.Join("\n", ctx.RecordBuffer);
-        var tags = ctx.RecorderId is null ? null : new[] { ctx.RecorderId };
-        ctx.Messenger.SendChat(replay, tags);
-        ctx.RecordBuffer.Clear();
+            preCondition: RecordingPolicy.IsStopRecordingByCurrentRecorder,
+            tasksToDo: RecordingPolicy.RecordReplayForStopRecordingLeave);
     }
 }

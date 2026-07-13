@@ -73,5 +73,5 @@ foreach (var line in eventsScript)
 
     domainEvent.Echo(Console.Out);    
     domainEvent.ApplyCustomizedEventInfoTo(ctx);               
-    fsm.Fire(domainEvent.ToFsmEvent(), ctx); // 轉成 FSM 事件跑機器人回應(🤖)
+    fsm.Fire(domainEvent.ToFsmEvent(), ctx); 
 }

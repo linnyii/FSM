@@ -3,7 +3,6 @@ using Bot;
 
 namespace Application.Parsing;
 
-/// <summary><c>[go broadcasting] {"speakerId"}</c> → GoBroadcastingEvent。</summary>
 public sealed class GoBroadcastingParser : IEventParser
 {
     public string Name => BotEvents.GoBroadcasting;

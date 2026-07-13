@@ -1,6 +1,5 @@
 namespace Application.Output;
 
-/// <summary>廣播頻道的輸出格式:機器人 <c>🤖 go broadcasting...</c> / <c>🤖 speaking:</c> / <c>🤖 stop broadcasting...</c>。</summary>
 public sealed class BroadcastView(TextWriter output)
 {
     public void BotStarts() => output.WriteLine("🤖 go broadcasting...");

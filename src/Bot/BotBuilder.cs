@@ -52,7 +52,7 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
             guards.Add(new HasQuotaGuard<TContext>(tokenCosts));
 
         var action = BuildAction(tokenCosts, replies, tasksToDo);
-        _transitions.Add(new Transition<TContext>(stateFrom, BotEvents.NewMessage, stateTo, new AndGuard<TContext>(guards.ToArray()), action));
+        _transitions.Add(new Transition<TContext>(stateFrom, BotEvents.NewMessage, stateTo, new GuardList<TContext>(guards.ToArray()), action));
     }
     
     public void AddTransition(
@@ -66,7 +66,7 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
     {
         IGuard<TContext> baseGuard = preCondition is null ? AlwaysTrueGuard<TContext>.Instance : new PredicateGuard<TContext>(preCondition);
         var guard = tokenCosts > 0
-            ? new AndGuard<TContext>(baseGuard, new HasQuotaGuard<TContext>(tokenCosts))
+            ? new GuardList<TContext>(baseGuard, new HasQuotaGuard<TContext>(tokenCosts))
             : baseGuard;
 
         var action = BuildAction(tokenCosts, showingMessage, tasksToDo);
@@ -105,7 +105,7 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         {
             0 => NoOpAction<TContext>.Instance,
             1 => parts[0],
-            _ => new TransitionAction<TContext>(parts.ToArray()),
+            _ => new ActionList<TContext>(parts.ToArray()),
         };
     }
 
@@ -130,23 +130,9 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
                 return new CompositeState<TContext>(Id, subFsm, resolver);
             }
 
-            // 有輪播:handle 發下一則、entry 先歸零（重進場從第一則開始）。
-            Action<TContext>? onEntry = OnEntry;
-            Action<Event, TContext>? onHandle = OnHandle;
-            if (Rotate is not null)
-            {
-                var rotate = Rotate;
-                var userHandle = OnHandle;
-                onHandle = userHandle is null
-                    ? rotate.Emit
-                    : (e, ctx) => { userHandle(e, ctx); rotate.Emit(e, ctx); };
-                var userEntry = OnEntry;
-                onEntry = ctx =>
-                {
-                    userEntry?.Invoke(ctx);
-                    rotate.ResetOnEntry(ctx);
-                };
-            }
+            // 有輪播:Rotate 自己把 handle/entry 裝飾起來（handle 先跑使用者再吐輪播、entry 先跑使用者再歸零索引）。
+            Action<TContext>? onEntry = Rotate is null ? OnEntry : Rotate.DecorateEntry(OnEntry);
+            Action<Event, TContext>? onHandle = Rotate is null ? OnHandle : Rotate.DecorateHandle(OnHandle);
 
             return new LeafState<TContext>(Id, onEntry, OnExit, onHandle);
         }

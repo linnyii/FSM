@@ -27,4 +27,14 @@ public sealed class Rotate<C> where C : IBotContext
         _index++;
         ctx.Messenger.SendChat(content);
     }
+
+    /// <summary>把使用者的 onHandle 裝飾起來：先跑使用者的（若有），再吐輪播。</summary>
+    public Action<Event, C> DecorateHandle(Action<Event, C>? inner) =>
+        inner is null
+            ? Emit
+            : (e, ctx) => { inner(e, ctx); Emit(e, ctx); };
+
+    /// <summary>把使用者的 onEntry 裝飾起來：先跑使用者的（若有），再把輪播索引歸零。</summary>
+    public Action<C> DecorateEntry(Action<C>? inner) =>
+        ctx => { inner?.Invoke(ctx); ResetOnEntry(ctx); };
 }

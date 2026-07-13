@@ -1,6 +1,5 @@
 namespace Application.Output;
 
-/// <summary>tags 格式:每個 id 前標 <c>@</c>,以「逗號 + 一個空白」分隔(<c>@3, @4, @bot</c>)。</summary>
 public static class Tags
 {
     public static string Format(IReadOnlyList<string>? tags) =>
