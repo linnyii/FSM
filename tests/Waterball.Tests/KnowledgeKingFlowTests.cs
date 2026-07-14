@@ -22,7 +22,7 @@ public class KnowledgeKingFlowTests
         var spy = new SpyMessenger();
         var ctx = new BotContext(spy, initialTokenQuota: 100);
         var fsm = WaterballBot.Define();
-        fsm.Current.OnEntry(ctx);
+        fsm.CurrentState.OnEntry(ctx);
 
         // 建幾個玩家 + admin 進表(login 語意)。
         ctx.UpsertUser(Admin, isAdmin: true);
@@ -30,7 +30,7 @@ public class KnowledgeKingFlowTests
         ctx.UpsertUser(Bob, isAdmin: false);
 
         ctx.CurrentUser = ctx.Users[Admin];
-        fsm.Fire(Msg(Admin, "king"), ctx); // 進 KnowledgeKing/Questioning(Q0)
+        fsm.Process(Msg(Admin, "king"), ctx); // 進 KnowledgeKing/Questioning(Q0)
         spy.Log.Clear();
         return (fsm, ctx, spy);
     }
@@ -44,7 +44,7 @@ public class KnowledgeKingFlowTests
     private static void Answer(FiniteStateMachine<BotContext> fsm, BotContext ctx, string author, string content, bool tagsBot = true)
     {
         ctx.CurrentUser = ctx.Users.TryGetValue(author, out var u) ? u : new User(author, false);
-        fsm.Fire(Msg(author, content, tagsBot), ctx);
+        fsm.Process(Msg(author, content, tagsBot), ctx);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class KnowledgeKingFlowTests
     {
         var (fsm, ctx, spy) = StartKing();
 
-        fsm.Fire(Elapsed(20), ctx); // 沒人答對,20s → 跨題
+        fsm.Process(Elapsed(20), ctx); // 沒人答對,20s → 跨題
         Assert.Contains($"chat:{Bank.GetTheQuestionAt(1)}", spy.Log);
     }
 
@@ -125,7 +125,7 @@ public class KnowledgeKingFlowTests
     {
         var (fsm, ctx, spy) = StartKing();
 
-        fsm.Fire(Elapsed(3600), ctx); // 全場 1h → 強制 Thanks
+        fsm.Process(Elapsed(3600), ctx); // 全場 1h → 強制 Thanks
         Assert.Contains("speak:Tie!", spy.Log); // 無人答對 → Tie
     }
 
@@ -150,7 +150,7 @@ public class KnowledgeKingFlowTests
         Answer(fsm, ctx, Bob, Correct(1));   // Bob 1 分 → Q2
         spy.Log.Clear();
 
-        fsm.Fire(Elapsed(20), ctx); // Q2 無人答 → Thanks;Alice=Bob=1 → Tie
+        fsm.Process(Elapsed(20), ctx); // Q2 無人答 → Thanks;Alice=Bob=1 → Tie
         Assert.Contains("speak:Tie!", spy.Log);
     }
 
@@ -163,7 +163,7 @@ public class KnowledgeKingFlowTests
         Answer(fsm, ctx, Alice, Correct(2)); // → Thanks
         ctx.CurrentUser = ctx.Users[Admin];
 
-        fsm.Fire(Msg(Admin, "play again"), ctx);
+        fsm.Process(Msg(Admin, "play again"), ctx);
 
         Assert.Equal(0, ctx.CurrentQuestionIndex);
         Assert.Equal(0, ctx.Users[Alice].Score);
@@ -173,25 +173,25 @@ public class KnowledgeKingFlowTests
     public void Play_again_after_thanks_does_not_leak_thanks_timeout_into_new_questioning()
     {
         var (fsm, ctx, spy) = StartKing();
-        fsm.Fire(Elapsed(3600), ctx); // → Thanks
-        fsm.Fire(Elapsed(20), ctx);   // Thanks 累計到 20（若不清會殘留）
+        fsm.Process(Elapsed(3600), ctx); // → Thanks
+        fsm.Process(Elapsed(20), ctx);   // Thanks 累計到 20（若不清會殘留）
         // 回到 Normal 了;重新開一場。
         ctx.CurrentUser = ctx.Users[Admin];
-        fsm.Fire(Msg(Admin, "king"), ctx); // 新一場 Questioning
+        fsm.Process(Msg(Admin, "king"), ctx); // 新一場 Questioning
 
         // 一個小 tick(< 20s):不該因殘留的 ElapsedSecondsInThanks 誤觸「Thanks 20s → Normal」。
-        fsm.Fire(Elapsed(5), ctx);
-        Assert.Equal("KnowledgeKing", fsm.Current.Id);
+        fsm.Process(Elapsed(5), ctx);
+        Assert.Equal("KnowledgeKing", fsm.CurrentState.Id);
     }
 
     [Fact]
     public void Thanks_timeout_20s_returns_to_normal()
     {
         var (fsm, ctx, spy) = StartKing();
-        fsm.Fire(Elapsed(3600), ctx); // → Thanks
-        Assert.Equal("KnowledgeKing", fsm.Current.Id);
+        fsm.Process(Elapsed(3600), ctx); // → Thanks
+        Assert.Equal("KnowledgeKing", fsm.CurrentState.Id);
 
-        fsm.Fire(Elapsed(20), ctx); // Thanks 20s → Normal
-        Assert.Equal("Normal", fsm.Current.Id);
+        fsm.Process(Elapsed(20), ctx); // Thanks 20s → Normal
+        Assert.Equal("Normal", fsm.CurrentState.Id);
     }
 }

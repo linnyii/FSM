@@ -5,7 +5,7 @@ public sealed class FiniteStateMachine<C>
     private readonly Dictionary<string, IState<C>> _states;
     private readonly List<Transition<C>> _transitions;
 
-    public IState<C> Current { get; private set; }
+    public IState<C> CurrentState { get; private set; }
 
     public FiniteStateMachine(
         IEnumerable<IState<C>> states,
@@ -14,7 +14,7 @@ public sealed class FiniteStateMachine<C>
     {
         _states = states.ToDictionary(s => s.Id);
         _transitions = transitions.ToList();
-        Current = Resolve(initialStateId);
+        CurrentState = Resolve(initialStateId);
     }
 
     private IState<C> Resolve(string id) =>
@@ -22,25 +22,25 @@ public sealed class FiniteStateMachine<C>
             ? state
             : throw new InvalidOperationException($"Unknown state id: '{id}'");
 
-    public void Reset(string stateId) => Current = Resolve(stateId);
+    public void ResetCurrentState(string stateId) => CurrentState = Resolve(stateId);
 
-    public FireResult Fire(Event @event, C ctx)
+    public TriggerResult Process(Event @event, C ctx)
     {
-        if (Current.Handle(@event, ctx) == FireResult.Consumed)
-            return FireResult.Consumed;
+        if (CurrentState.Handle(@event, ctx) == TriggerResult.Consumed)
+            return TriggerResult.Consumed;
 
         var transition = _transitions.FirstOrDefault(t =>
-            t.From == Current.Id &&
+            t.From == CurrentState.Id &&
             t.On == @event.Name &&
             t.Guard.Test(@event, ctx));
 
         if (transition is null)
-            return FireResult.NotConsumed;
+            return TriggerResult.NotConsumed;
 
-        Current.OnExit(ctx);
+        CurrentState.OnExit(ctx);
         transition.Action.Execute(@event, ctx);
-        Current = Resolve(transition.To);
-        Current.OnEntry(ctx);
-        return FireResult.Consumed;
+        CurrentState = Resolve(transition.To);
+        CurrentState.OnEntry(ctx);
+        return TriggerResult.Consumed;
     }
 }

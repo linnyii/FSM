@@ -1,6 +1,6 @@
 namespace Fsm.Core;
 
-public enum FireResult
+public enum TriggerResult
 {
     Consumed,
     NotConsumed,

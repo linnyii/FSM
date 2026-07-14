@@ -8,5 +8,5 @@ public interface IState<in C>
     void OnEntry(C ctx);
 
     void OnExit(C ctx);
-    FireResult Handle(Event @event, C ctx);
+    TriggerResult Handle(Event @event, C ctx);
 }

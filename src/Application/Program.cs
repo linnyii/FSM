@@ -60,7 +60,7 @@ string[] eventsScript =
     "[end]",
 ];
 
-fsm.Current.OnEntry(ctx);
+fsm.CurrentState.OnEntry(ctx);
 
 foreach (var line in eventsScript)
 {
@@ -72,5 +72,5 @@ foreach (var line in eventsScript)
 
     domainEvent.Echo(Console.Out);    
     domainEvent.ApplyCustomizedEventInfoTo(ctx);               
-    fsm.Fire(domainEvent.ToFsmEvent(), ctx); 
+    fsm.Process(domainEvent.ToFsmEvent(), ctx); 
 }

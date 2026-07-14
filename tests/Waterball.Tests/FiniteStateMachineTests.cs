@@ -27,11 +27,11 @@ public class FiniteStateMachineTests
             action: new DelegateAction<TraceCtx>((_, c) => c.Trace.Add("action")));
         var fsm = new FiniteStateMachine<TraceCtx>(new[] { a, b }, new[] { t }, "A");
 
-        var result = fsm.Fire(new Event("go"), ctx);
+        var result = fsm.Process(new Event("go"), ctx);
 
-        Assert.Equal(FireResult.Consumed, result);
+        Assert.Equal(TriggerResult.Consumed, result);
         Assert.Equal(new[] { "A.handle", "A.exit", "action", "B.entry" }, ctx.Trace);
-        Assert.Equal("B", fsm.Current.Id);
+        Assert.Equal("B", fsm.CurrentState.Id);
     }
 
     [Fact]
@@ -45,11 +45,11 @@ public class FiniteStateMachineTests
             guard: new PredicateGuard<TraceCtx>((_, _) => false));
         var fsm = new FiniteStateMachine<TraceCtx>(new[] { a, b }, new[] { t }, "A");
 
-        var result = fsm.Fire(new Event("go"), ctx);
+        var result = fsm.Process(new Event("go"), ctx);
 
-        Assert.Equal(FireResult.NotConsumed, result);
+        Assert.Equal(TriggerResult.NotConsumed, result);
         Assert.Equal(new[] { "A.handle" }, ctx.Trace); // 只有 handle，沒轉移
-        Assert.Equal("A", fsm.Current.Id);
+        Assert.Equal("A", fsm.CurrentState.Id);
     }
 
     [Fact]
@@ -64,9 +64,9 @@ public class FiniteStateMachineTests
         var second = new Transition<TraceCtx>("A", "go", "C");
         var fsm = new FiniteStateMachine<TraceCtx>(new[] { a, b, c }, new[] { first, second }, "A");
 
-        fsm.Fire(new Event("go"), ctx);
+        fsm.Process(new Event("go"), ctx);
 
-        Assert.Equal("B", fsm.Current.Id);
+        Assert.Equal("B", fsm.CurrentState.Id);
     }
 
     [Fact]
@@ -83,8 +83,8 @@ public class FiniteStateMachineTests
             guard: new PredicateGuard<TraceCtx>((e, _) => (string?)e.Payload == "record"));
         var fsm = new FiniteStateMachine<TraceCtx>(new[] { a, b, c }, new[] { toB, toC }, "A");
 
-        fsm.Fire(new Event("msg", "record"), ctx);
+        fsm.Process(new Event("msg", "record"), ctx);
 
-        Assert.Equal("C", fsm.Current.Id);
+        Assert.Equal("C", fsm.CurrentState.Id);
     }
 }

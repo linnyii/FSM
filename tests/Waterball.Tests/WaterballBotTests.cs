@@ -14,7 +14,7 @@ public class WaterballBotTests
         var spy = new SpyMessenger();
         var ctx = new BotContext(spy, initialTokenQuota: quota);
         var fsm = WaterballBot.Define();
-        fsm.Current.OnEntry(ctx); // 啟動初始子狀態（Normal → Default）
+        fsm.CurrentState.OnEntry(ctx); // 啟動初始子狀態（Normal → Default）
         return (fsm, ctx, spy);
     }
 
@@ -27,7 +27,7 @@ public class WaterballBotTests
         var (fsm, ctx, spy) = NewBot(quota: 10);
         ctx.CurrentUser = new User(Admin, isAdmin: true);
 
-        fsm.Fire(Msg(Admin, "king"), ctx);
+        fsm.Process(Msg(Admin, "king"), ctx);
 
         // 先響應（輪播 good to hear）→ 開場白（transition action）→ 出第 0 題 + 作答提示（Questioning.entry）
         var bank = new Application.Quiz.ChoiceQuizBank();
@@ -39,7 +39,7 @@ public class WaterballBotTests
             "chat:請 @bot 並回覆選項代號(A/B/C/D)作答",
         }, spy.Log);
         Assert.Equal(5, ctx.TokenQuota);                 // 扣了 5
-        Assert.Equal("KnowledgeKing", fsm.Current.Id);
+        Assert.Equal("KnowledgeKing", fsm.CurrentState.Id);
     }
 
     [Fact]
@@ -48,12 +48,12 @@ public class WaterballBotTests
         var (fsm, ctx, spy) = NewBot(quota: 10);
         ctx.CurrentUser = new User(NonAdmin, isAdmin: false);
 
-        var result = fsm.Fire(Msg(NonAdmin, "king"), ctx);
+        var result = fsm.Process(Msg(NonAdmin, "king"), ctx);
 
-        Assert.Equal(FireResult.NotConsumed, result);
+        Assert.Equal(TriggerResult.NotConsumed, result);
         Assert.Equal(new[] { "chat:good to hear" }, spy.Log); // 只有輪播，沒轉移
         Assert.Equal(10, ctx.TokenQuota);                          // 沒扣
-        Assert.Equal("Normal", fsm.Current.Id);
+        Assert.Equal("Normal", fsm.CurrentState.Id);
     }
 
     [Fact]
@@ -62,10 +62,10 @@ public class WaterballBotTests
         var (fsm, ctx, spy) = NewBot(quota: 3);
         ctx.CurrentUser = new User(Admin, isAdmin: true);
 
-        var result = fsm.Fire(Msg(Admin, "king"), ctx);
+        var result = fsm.Process(Msg(Admin, "king"), ctx);
 
-        Assert.Equal(FireResult.NotConsumed, result);
-        Assert.Equal("Normal", fsm.Current.Id);
+        Assert.Equal(TriggerResult.NotConsumed, result);
+        Assert.Equal("Normal", fsm.CurrentState.Id);
         Assert.Equal(3, ctx.TokenQuota);
     }
 
@@ -75,12 +75,12 @@ public class WaterballBotTests
         var (fsm, ctx, spy) = NewBot(quota: 10);
         ctx.CurrentUser = new User(Admin, isAdmin: true);
 
-        fsm.Fire(Msg(Admin, "king"), ctx);   // 進 KnowledgeKing/Questioning(3 題)
+        fsm.Process(Msg(Admin, "king"), ctx);   // 進 KnowledgeKing/Questioning(3 題)
         DriveTimeoutThroughAllQuestions(fsm, ctx); // 全部 20s timeout → ThanksForJoining
-        Assert.Equal("KnowledgeKing", fsm.Current.Id);
+        Assert.Equal("KnowledgeKing", fsm.CurrentState.Id);
         spy.Log.Clear();
 
-        fsm.Fire(Msg(Admin, "play again"), ctx);
+        fsm.Process(Msg(Admin, "play again"), ctx);
 
         // play again 的開場白是 "gonna start again!"，再出第 0 題 + 作答提示（共同）
         var bank = new Application.Quiz.ChoiceQuizBank();
@@ -90,7 +90,7 @@ public class WaterballBotTests
             $"chat:{bank.GetTheQuestionAt(0)}",
             "chat:請 @bot 並回覆選項代號(A/B/C/D)作答",
         }, spy.Log);
-        Assert.Equal("KnowledgeKing", fsm.Current.Id);
+        Assert.Equal("KnowledgeKing", fsm.CurrentState.Id);
     }
 
     // 每題一個 20s elapsed:onHandle 先累計到 20 → 同一事件的 20s transition 立即跨題;走完全部題目到 ThanksForJoining。
@@ -98,7 +98,7 @@ public class WaterballBotTests
     {
         var count = ctx.QuizBank.Count;
         for (var i = 0; i < count; i++)
-            fsm.Fire(Elapsed(20), ctx);
+            fsm.Process(Elapsed(20), ctx);
     }
 
     private static Event Elapsed(int seconds) => new(BotEvents.Elapsed, seconds);
@@ -108,24 +108,24 @@ public class WaterballBotTests
     {
         var (fsm, ctx, _) = NewBot(quota: 100);
         ctx.CurrentUser = new User(Admin, isAdmin: true);
-        fsm.Fire(Msg(Admin, "king"), ctx);
+        fsm.Process(Msg(Admin, "king"), ctx);
 
-        fsm.Fire(Msg(Admin, "king-stop"), ctx);
+        fsm.Process(Msg(Admin, "king-stop"), ctx);
 
-        Assert.Equal("Normal", fsm.Current.Id);
+        Assert.Equal("Normal", fsm.CurrentState.Id);
     }
 
     [Fact]
     public void Record_then_go_broadcasting_stays_in_record_and_broadcasts()
     {
         var (fsm, ctx, spy) = NewBot(quota: 100);
-        fsm.Fire(Msg(NonAdmin, "record"), ctx);   // 進 Record（初始 Waiting，無人廣播）
+        fsm.Process(Msg(NonAdmin, "record"), ctx);   // 進 Record（初始 Waiting，無人廣播）
         spy.Log.Clear();
 
-        var result = fsm.Fire(new Event(BotEvents.GoBroadcasting), ctx);
+        var result = fsm.Process(new Event(BotEvents.GoBroadcasting), ctx);
 
-        Assert.Equal(FireResult.Consumed, result);
-        Assert.Equal("Record", fsm.Current.Id);        // 內層轉 Recording，不冒泡
+        Assert.Equal(TriggerResult.Consumed, result);
+        Assert.Equal("Record", fsm.CurrentState.Id);        // 內層轉 Recording，不冒泡
         Assert.True(ctx.SomeoneIsBroadcasting);
         Assert.Contains("go-broadcasting", spy.Log);   // Recording.entry
     }
@@ -134,13 +134,13 @@ public class WaterballBotTests
     public void Stop_recording_bubbles_to_leave_record_for_normal()
     {
         var (fsm, ctx, _) = NewBot(quota: 100);
-        fsm.Fire(Msg(NonAdmin, "record"), ctx);   // NonAdmin 成為錄音者
-        fsm.Fire(new Event(BotEvents.GoBroadcasting), ctx);
+        fsm.Process(Msg(NonAdmin, "record"), ctx);   // NonAdmin 成為錄音者
+        fsm.Process(new Event(BotEvents.GoBroadcasting), ctx);
 
-        var result = fsm.Fire(Msg(NonAdmin, "stop-recording"), ctx); // 限錄音者的指令
+        var result = fsm.Process(Msg(NonAdmin, "stop-recording"), ctx); // 限錄音者的指令
 
-        Assert.Equal(FireResult.Consumed, result);
-        Assert.Equal("Normal", fsm.Current.Id);
+        Assert.Equal(TriggerResult.Consumed, result);
+        Assert.Equal("Normal", fsm.CurrentState.Id);
         Assert.False(ctx.SomeoneIsBroadcasting);
     }
 
@@ -151,11 +151,11 @@ public class WaterballBotTests
         ctx.OnlineCount = 15; // >= 10 → Interacting
 
         // login 是留在 Normal 的自我轉移，會重跑 Normal.OnEntry → resolver 重選子狀態。
-        fsm.Fire(new Event(BotEvents.Login), ctx);
+        fsm.Process(new Event(BotEvents.Login), ctx);
         spy.Log.Clear();
 
         // Interacting 的輪播內容跟 Default 不同，用它驗證選到了 Interacting。
-        fsm.Fire(Msg(NonAdmin, "hi"), ctx);
+        fsm.Process(Msg(NonAdmin, "hi"), ctx);
         Assert.Equal(new[] { "chat:nice to see you" }, spy.Log);
     }
 }

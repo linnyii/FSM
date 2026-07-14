@@ -34,7 +34,7 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         return spec.SubStates;
     }
 
-    public void StartAt(string id) => _initialStateId = id;
+    public void InitStateFrom(string id) => _initialStateId = id;
 
     public void AddCommandTransition(
         string stateFrom,
@@ -101,7 +101,7 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
             if (SubStates is not null)
             {
                 var subFsm = SubStates.Build();
-                var resolver = InitialResolver ?? (_ => subFsm.Current.Id);
+                var resolver = InitialResolver ?? (_ => subFsm.CurrentState.Id);
                 return new CompositeState<TContext>(Id, subFsm, resolver);
             }
 

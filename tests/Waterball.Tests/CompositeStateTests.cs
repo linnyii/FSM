@@ -33,12 +33,12 @@ public class CompositeStateTests
         var outer = new Transition<Ctx>("Record", "go", "Normal");
         var fsm = new FiniteStateMachine<Ctx>(new IState<Ctx>[] { record, normal },
             new[] { outer }, "Record");
-        fsm.Current.OnEntry(ctx);
+        fsm.CurrentState.OnEntry(ctx);
 
-        var result = fsm.Fire(new Event("go"), ctx);
+        var result = fsm.Process(new Event("go"), ctx);
 
-        Assert.Equal(FireResult.Consumed, result);
-        Assert.Equal("Record", fsm.Current.Id); // 內層吃掉，外層沒轉
+        Assert.Equal(TriggerResult.Consumed, result);
+        Assert.Equal("Record", fsm.CurrentState.Id); // 內層吃掉，外層沒轉
     }
 
     [Fact]
@@ -51,12 +51,12 @@ public class CompositeStateTests
         var outer = new Transition<Ctx>("Record", "stop", "Normal");
         var fsm = new FiniteStateMachine<Ctx>(new IState<Ctx>[] { record, normal },
             new[] { outer }, "Record");
-        fsm.Current.OnEntry(ctx);
+        fsm.CurrentState.OnEntry(ctx);
 
-        var result = fsm.Fire(new Event("stop"), ctx);
+        var result = fsm.Process(new Event("stop"), ctx);
 
-        Assert.Equal(FireResult.Consumed, result);
-        Assert.Equal("Normal", fsm.Current.Id);
+        Assert.Equal(TriggerResult.Consumed, result);
+        Assert.Equal("Normal", fsm.CurrentState.Id);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class CompositeStateTests
         var fsm = new FiniteStateMachine<Ctx>(new IState<Ctx>[] { record },
             Array.Empty<Transition<Ctx>>(), "Record");
 
-        fsm.Current.OnEntry(ctx);
+        fsm.CurrentState.OnEntry(ctx);
 
         // 進場時 resolver 選 Recording，並觸發其 entry。
         Assert.Contains("Recording.entry", ctx.Trace);

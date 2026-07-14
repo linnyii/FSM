@@ -29,7 +29,7 @@ public static class WaterballBot
         DefineKnowledgeKingState(bot);
         DefineRecordState(bot);
 
-        bot.StartAt(Normal);
+        bot.InitStateFrom(Normal);
         return bot.Build();
     }
 
