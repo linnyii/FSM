@@ -36,16 +36,6 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
 
     public void InitStateFrom(string id) => _initialStateId = id;
 
-    public void AddCommandTransition(
-        string stateFrom,
-        string triggerCommandKey,
-        string stateTo,
-        params ITransitionFeature<TContext>[] features)
-    {
-        var all = features.Prepend(new CommandFeature<TContext>(triggerCommandKey));
-        AddTransition(stateFrom, BotEvents.NewMessage, stateTo, all.ToArray());
-    }
-
     public void AddTransition(
         string stateFrom,
         string triggerEventName,
