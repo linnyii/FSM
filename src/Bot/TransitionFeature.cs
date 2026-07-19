@@ -4,16 +4,16 @@ namespace Bot;
 
 public interface ITransitionFeature<C> where C : IBotContext
 {
-    IEnumerable<IGuard<C>> Guards() => [];
-    IEnumerable<IAction<C>> Actions() => [];
+    IGuard<C>? Guard => null;
+    IAction<C>? Action => null;
 }
 
 public sealed class WhenFeature<C>(Func<Event, C, bool> predicate) : ITransitionFeature<C> where C : IBotContext
 {
-    public IEnumerable<IGuard<C>> Guards() => [new PredicateGuard<C>(predicate)];
+    public IGuard<C> Guard { get; } = new PredicateGuard<C>(predicate);
 }
 
 public sealed class DoFeature<C>(Action<Event, C> does) : ITransitionFeature<C> where C : IBotContext
 {
-    public IEnumerable<IAction<C>> Actions() => [new DelegateAction<C>(does)];
+    public IAction<C> Action { get; } = new DelegateAction<C>(does);
 }

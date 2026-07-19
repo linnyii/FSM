@@ -5,7 +5,7 @@ namespace Bot;
 
 public sealed class BotBuilder<TContext> where TContext : IBotContext
 {
-    private readonly Dictionary<string, StateSpec> _states = new();
+    private readonly Dictionary<string, StateSpec<TContext>> _states = new();
     private readonly List<Transition<TContext>> _transitions = [];
     private string? _initialStateId;
 
@@ -42,8 +42,8 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         string stateTo,
         params ITransitionFeature<TContext>[] features)
     {
-        var guards = features.SelectMany(f => f.Guards()).ToArray();
-        var actions = features.SelectMany(f => f.Actions()).ToArray();
+        var guards = features.Select(f => f.Guard).OfType<IGuard<TContext>>().ToArray();
+        var actions = features.Select(f => f.Action).OfType<IAction<TContext>>().ToArray();
 
         IGuard<TContext> guard = guards.Length == 0 ? AlwaysTrueGuard<TContext>.Instance : new GuardList<TContext>(guards);
         var action = BuildAction(actions);
@@ -59,10 +59,10 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
         return new FiniteStateMachine<TContext>(states, _transitions, _initialStateId);
     }
 
-    private StateSpec GetOrCreateTheState(string id)
+    private StateSpec<TContext> GetOrCreateTheState(string id)
     {
         if (_states.TryGetValue(id, out var spec)) return spec;
-        spec = new StateSpec(id);
+        spec = new StateSpec<TContext>(id);
         _states[id] = spec;
         _initialStateId ??= id; // 第一個宣告的狀態預設為初始狀態
         return spec;
@@ -75,30 +75,4 @@ public sealed class BotBuilder<TContext> where TContext : IBotContext
             1 => actions[0],
             _ => new ActionList<TContext>(actions.ToArray()),
         };
-
-    private sealed class StateSpec(string id)
-    {
-        private string Id { get; } = id;
-        public Rotate<TContext>? Rotate { get; set; }
-        public Action<TContext>? OnEntry { get; set; }
-        public Action<TContext>? OnExit { get; set; }
-        public Action<Event, TContext>? OnHandle { get; set; }
-        public BotBuilder<TContext>? SubStates { get; set; }
-        public Func<TContext, string>? InitialResolver { get; set; }
-
-        public IState<TContext> BuildState()
-        {
-            if (SubStates is not null)
-            {
-                var subFsm = SubStates.Build();
-                var resolver = InitialResolver ?? (_ => subFsm.CurrentState.Id);
-                return new CompositeState<TContext>(Id, subFsm, resolver);
-            }
-
-            var onEntry = Rotate is null ? OnEntry : Rotate.DecorateEntry(OnEntry);
-            var onHandle = Rotate is null ? OnHandle : Rotate.DecorateHandle(OnHandle);
-
-            return new LeafState<TContext>(Id, onEntry, OnExit, onHandle);
-        }
-    }
 }

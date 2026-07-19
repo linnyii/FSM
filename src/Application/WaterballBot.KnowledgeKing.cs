@@ -18,11 +18,11 @@ public static partial class WaterballBot
 
         kk.AddTransition(Questioning, BotEvents.NewMessage, Questioning,
             When((e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && !KnowledgeKingPolicy.IsLastQuestion(ctx)),
-            Do((e, ctx) => { KnowledgeKingPolicy.AwardFirstCorrect(e, ctx); ctx.CurrentQuestionIndex++; }));
+            Do((e, ctx) => { KnowledgeKingPolicy.AwardToFirstCorrectPlayer(e, ctx); ctx.CurrentQuestionIndex++; }));
 
         kk.AddTransition(Questioning, BotEvents.NewMessage, ThanksForJoining,
             When((e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && KnowledgeKingPolicy.IsLastQuestion(ctx)),
-            Do(KnowledgeKingPolicy.AwardFirstCorrect));
+            Do(KnowledgeKingPolicy.AwardToFirstCorrectPlayer));
 
         kk.AddTransition(Questioning, BotEvents.Elapsed, Questioning,
             When((_, ctx) => ctx.ElapsedSecondsInQuestion >= KnowledgeKingPolicy.QuestionTimeoutSeconds && !KnowledgeKingPolicy.IsLastQuestion(ctx)),
@@ -34,7 +34,7 @@ public static partial class WaterballBot
 
         kk.AddLeafState(ThanksForJoining,
             onEnter: KnowledgeKingPolicy.OnEnterThanksForJoining,
-            onHandle: (e, ctx) => ctx.ElapsedSecondsInThanks += KnowledgeKingPolicy.SecondsOf(e));
+            onHandle: (e, ctx) => ctx.ElapsedSecondsInThanks += KnowledgeKingPolicy.GetElapsedSeconds(e));
 
         kk.AddTransition(ThanksForJoining, BotEvents.NewMessage, Questioning,
             When(CommandPolicy.Is("play again")),

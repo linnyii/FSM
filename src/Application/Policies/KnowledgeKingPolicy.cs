@@ -21,7 +21,7 @@ internal static class KnowledgeKingPolicy
     public static void OnEnterThanksForJoining(BotContext ctx)
     {
         ctx.ElapsedSecondsInThanks = 0;
-        var result = BuildResult(ctx);
+        var result = BuildGameResultMsg(ctx);
         if (ctx.SomeoneIsBroadcasting)
             ctx.Messenger.SendChat(result);
         else
@@ -41,7 +41,7 @@ internal static class KnowledgeKingPolicy
         && ctx.FirstCorrectAnswerer is null
         && ctx.QuizBank.CheckIsCorrect(ctx.CurrentQuestionIndex, m.Content);
 
-    public static void AwardFirstCorrect(Event e, BotContext ctx)
+    public static void AwardToFirstCorrectPlayer(Event e, BotContext ctx)
     {
         var m = (ChatMessage)e.Payload!;
         ctx.FirstCorrectAnswerer = m.AuthorId;
@@ -52,12 +52,12 @@ internal static class KnowledgeKingPolicy
 
     public static void AccumulateElapsed(Event e, BotContext ctx)
     {
-        var seconds = SecondsOf(e);
+        var seconds = GetElapsedSeconds(e);
         ctx.ElapsedSecondsInQuestion += seconds;
         ctx.ElapsedSecondsInGame += seconds;
     }
 
-    public static int SecondsOf(Event e) => e.Payload is int s ? s : 0;
+    public static int GetElapsedSeconds(Event e) => e.Payload is int s ? s : 0;
 
     public static void ResetGame(Event _, BotContext ctx)
     {
@@ -69,7 +69,7 @@ internal static class KnowledgeKingPolicy
             user.Score = 0;
     }
 
-    private static string BuildResult(BotContext ctx)
+    private static string BuildGameResultMsg(BotContext ctx)
     {
         var top = ctx.Users.Values
             .OrderByDescending(u => u.Score)

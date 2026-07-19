@@ -16,7 +16,7 @@ internal static class RecordingPolicy
         ctx.RecordBuffer.Clear();
     }
 
-    public static void AccumulateSpeak(Event e, BotContext ctx)
+    public static void AccumulateSpeakMsg(Event e, BotContext ctx)
     {
         if (e.Payload is Parsing.SpeakInfo s)
             ctx.RecordBuffer.Add(s.Content);

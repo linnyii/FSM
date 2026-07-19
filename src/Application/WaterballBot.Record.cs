@@ -15,7 +15,7 @@ public static partial class WaterballBot
 
         record.AddLeafState(Recording,
             onEnter: ctx => ctx.Messenger.GoBroadcasting(),
-            onHandle: RecordingPolicy.AccumulateSpeak);
+            onHandle: RecordingPolicy.AccumulateSpeakMsg);
 
         record.AddTransition(Waiting, BotEvents.GoBroadcasting, Recording,
             Do((_, ctx) => ctx.SomeoneIsBroadcasting = true));
