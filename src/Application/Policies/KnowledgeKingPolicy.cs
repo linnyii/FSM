@@ -32,7 +32,7 @@ internal static class KnowledgeKingPolicy
     public static bool IsLastQuestion(BotContext ctx) =>
         ctx.CurrentQuestionIndex >= ctx.QuizBank.Count - 1;
 
-    public static bool IsGameTimeout(BotContext ctx) =>
+    public static bool IsGameTimeout(Event _, BotContext ctx) =>
         ctx.ElapsedSecondsInGame >= GameTimeoutSeconds;
 
     public static bool IsFirstCorrectAnswer(Event e, BotContext ctx) =>
@@ -59,7 +59,7 @@ internal static class KnowledgeKingPolicy
 
     public static int SecondsOf(Event e) => e.Payload is int s ? s : 0;
 
-    public static void ResetGame(BotContext ctx)
+    public static void ResetGame(Event _, BotContext ctx)
     {
         ctx.CurrentQuestionIndex = 0;
         ctx.ElapsedSecondsInGame = 0;

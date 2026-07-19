@@ -43,11 +43,18 @@ public static class WaterballBot
             botAutoRotateMessage: ["nice to see you", "welcome back", "let's chat"]);
 
         bot.AddTransition(Normal, BotEvents.NewMessage, KnowledgeKing,
-            Command("king"), AdminOnly(), Costs(5), Reply("KnowledgeKing is started!"),
-            Do((_, ctx) => KnowledgeKingPolicy.ResetGame(ctx)));
+            When(CommandPolicy.Is("king")), 
+            When(AdminPolicy.IsAdmin),
+            When(CostPolicy.HasQuota(5)), 
+            Do(CostPolicy.DeductQuota(5)),
+            Do(ReplyPolicy.SendChat("KnowledgeKing is started!")),
+            Do(KnowledgeKingPolicy.ResetGame));
 
         bot.AddTransition(Normal, BotEvents.NewMessage, Record,
-            Command("record"), Costs(3), Do(RecordingPolicy.StartRecording));
+            When(CommandPolicy.Is("record")),
+            When(CostPolicy.HasQuota(3)), 
+            Do(CostPolicy.DeductQuota(3)),
+            Do(RecordingPolicy.StartRecording));
 
         bot.AddTransition(Normal, BotEvents.Login, Normal,
             Do((_, ctx) => ctx.OnlineCount++));
@@ -57,14 +64,14 @@ public static class WaterballBot
 
     private static void DefineKnowledgeKingState(BotBuilder<BotContext> bot)
     {
-        var kk = bot.AddCompositeState(KnowledgeKing); // 無 resolver → 固定進第一個宣告的子狀態
+        var kk = bot.AddCompositeState(KnowledgeKing);
 
         kk.AddLeafState(Questioning,
             onEnter: KnowledgeKingPolicy.OnEnterQuestioning,
             onHandle: KnowledgeKingPolicy.AccumulateElapsed);
 
         kk.AddTransition(Questioning, BotEvents.Elapsed, ThanksForJoining,
-            When((_, ctx) => KnowledgeKingPolicy.IsGameTimeout(ctx)));
+            When(KnowledgeKingPolicy.IsGameTimeout));
 
         kk.AddTransition(Questioning, BotEvents.NewMessage, Questioning,
             When((e, ctx) => KnowledgeKingPolicy.IsFirstCorrectAnswer(e, ctx) && !KnowledgeKingPolicy.IsLastQuestion(ctx)),
@@ -87,11 +94,12 @@ public static class WaterballBot
             onHandle: (e, ctx) => ctx.ElapsedSecondsInThanks += KnowledgeKingPolicy.SecondsOf(e));
 
         kk.AddTransition(ThanksForJoining, BotEvents.NewMessage, Questioning,
-            Command("play again"), Reply("KnowledgeKing is gonna start again!"),
-            Do((_, ctx) => KnowledgeKingPolicy.ResetGame(ctx)));
+            When(CommandPolicy.Is("play again")),
+            Do(ReplyPolicy.SendChat("KnowledgeKing is gonna start again!")),
+            Do(KnowledgeKingPolicy.ResetGame));
 
         bot.AddTransition(KnowledgeKing, BotEvents.NewMessage, Normal,
-            Command("king-stop"), AdminOnly());
+            When(CommandPolicy.Is("king-stop")), When(AdminPolicy.IsAdmin));
 
         bot.AddTransition(KnowledgeKing, BotEvents.Elapsed, Normal,
             When((_, ctx) => ctx.ElapsedSecondsInThanks >= KnowledgeKingPolicy.ThanksTimeoutSeconds));
