@@ -70,7 +70,7 @@ foreach (var line in eventsScript)
     if (domainEvent is EndEvent)
         break;
 
-    domainEvent.Echo(Console.Out);    
+    domainEvent.ConsoleOutput(Console.Out);    
     domainEvent.ApplyCustomizedEventInfoTo(ctx);               
     fsm.Process(domainEvent.ToFsmEvent(), ctx); 
 }

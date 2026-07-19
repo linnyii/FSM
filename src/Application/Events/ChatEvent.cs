@@ -7,7 +7,7 @@ public sealed record ChatEvent(string AuthorId, string Content, IReadOnlyList<st
 {
     private bool TagsBot => Tags.Contains("bot");
 
-    public void Echo(TextWriter output) => output.WriteLine($"💬 {AuthorId}: {Content}{Output.Tags.Format(Tags)}");
+    public void ConsoleOutput(TextWriter output) => output.WriteLine($"💬 {AuthorId}: {Content}{Output.Tags.Format(Tags)}");
 
     public void ApplyCustomizedEventInfoTo(BotContext ctx) => ctx.SetCurrentUser(AuthorId);
 

@@ -27,7 +27,7 @@ public sealed record StartedEvent(string Time, int Quota) : IDomainEvent
 
 public sealed record ElapsedEvent(int Seconds, string Shell) : IDomainEvent
 {
-    public void Echo(TextWriter output) => output.WriteLine($"🕑 {Shell} elapsed...");
+    public void ConsoleOutput(TextWriter output) => output.WriteLine($"🕑 {Shell} elapsed...");
     public Event ToFsmEvent() => new(BotEvents.Elapsed, Seconds);
 }
 

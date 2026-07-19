@@ -8,7 +8,7 @@ public class InputEchoTests
     private static string Echo(IDomainEvent e)
     {
         var sw = new StringWriter();
-        e.Echo(sw);
+        e.ConsoleOutput(sw);
         return sw.ToString().TrimEnd('\r', '\n');
     }
 

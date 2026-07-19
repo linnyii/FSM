@@ -4,7 +4,7 @@ namespace Application.Events;
 
 public interface IDomainEvent
 {
-    void Echo(TextWriter output) { }
+    void ConsoleOutput(TextWriter output) { }
     void ApplyCustomizedEventInfoTo(BotContext ctx) { }
     Event ToFsmEvent();
 }
